@@ -1,0 +1,12 @@
+<Solution>
+  <Folder Name="/Solution Items/">
+    <File Path=".env" />
+    <File Path=".env.example" />
+    <File Path=".gitignore" />
+  </Folder>
+  <Project Path="giaoanpro-backend.API/giaoanpro-backend.API.csproj" Id="305ceb4b-69fa-4e31-9d18-4317acccc610" />
+  <Project Path="giaoanpro-backend.Application/giaoanpro-backend.Application.csproj" Id="4cbe083c-ee77-480f-a882-02bdadac9c74" />
+  <Project Path="giaoanpro-backend.Domain/giaoanpro-backend.Domain.csproj" Id="32aa9a48-d6ee-48c7-b87e-aa60412e42a1" />
+  <Project Path="giaoanpro-backend.Infrastructure/giaoanpro-backend.Infrastructure.csproj" Id="867b723a-2753-45a2-af68-a002deee8145" />
+  <Project Path="giaoanpro-backend.Persistence/giaoanpro-backend.Persistence.csproj" Id="ea1e1d13-b41f-4ba7-bf97-fefaee72b1ac" />
+</Solution>
