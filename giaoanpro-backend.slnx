@@ -3,6 +3,7 @@
     <File Path=".env" />
     <File Path=".env.example" />
     <File Path=".gitignore" />
+    <File Path="README.md" />
   </Folder>
   <Project Path="giaoanpro-backend.API/giaoanpro-backend.API.csproj" Id="305ceb4b-69fa-4e31-9d18-4317acccc610" />
   <Project Path="giaoanpro-backend.Application/giaoanpro-backend.Application.csproj" Id="4cbe083c-ee77-480f-a882-02bdadac9c74" />

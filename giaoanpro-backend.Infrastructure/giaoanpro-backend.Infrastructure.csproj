@@ -11,4 +11,12 @@
     <ProjectReference Include="..\giaoanpro-backend.Persistence\giaoanpro-backend.Persistence.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Folder Include="3PServices\" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.Cors" Version="2.3.0" />
+  </ItemGroup>
+
 </Project>
