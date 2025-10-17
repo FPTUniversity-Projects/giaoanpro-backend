@@ -11,5 +11,6 @@ namespace giaoanpro_backend.Domain.Entities
 
 		// Navigation property
 		public virtual User User { get; set; } = null!;
+		public virtual ICollection<Question> Questions { get; set; } = new List<Question>();
 	}
 }

@@ -30,7 +30,6 @@ namespace giaoanpro_backend.Persistence.Context
 		public DbSet<PromptLog> PromptLogs { get; set; }
 		public DbSet<QuestionOption> QuestionOptions { get; set; }
 		public DbSet<Activity> Activitys { get; set; }
-		public DbSet<QuestionBank> QuestionBanks { get; set; }
 		public DbSet<ClassMember> ClassMembers { get; set; }
 
 		protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -197,6 +196,14 @@ namespace giaoanpro_backend.Persistence.Context
 				.HasForeignKey(a => a.LessonPlanId)
 				.OnDelete(DeleteBehavior.Cascade);
 
+			// Activity parent/child relationship
+			modelBuilder.Entity<Activity>()
+				.HasOne(a => a.Parent)
+				.WithMany(p => p.Children) // Use the new Children navigation property
+				.HasForeignKey(a => a.ParentId)
+				.IsRequired(false) // ParentId is nullable
+				.OnDelete(DeleteBehavior.Restrict);
+
 			// LessonPlan -> User & Subject
 			modelBuilder.Entity<LessonPlan>()
 				.HasOne(lp => lp.User)
@@ -210,16 +217,9 @@ namespace giaoanpro_backend.Persistence.Context
 				.HasForeignKey(lp => lp.SubjectId)
 				.OnDelete(DeleteBehavior.Restrict);
 
-			// Question -> Bank & Prompt
-			modelBuilder.Entity<Question>()
-				.HasOne(q => q.Bank)
-				.WithMany(b => b.Questions)
-				.HasForeignKey(q => q.BankId)
-				.OnDelete(DeleteBehavior.Restrict);
-
 			modelBuilder.Entity<Question>()
 				.HasOne(q => q.Prompt)
-				.WithMany()
+				.WithMany(p => p.Questions)
 				.HasForeignKey(q => q.PromptId)
 				.OnDelete(DeleteBehavior.Restrict);
 

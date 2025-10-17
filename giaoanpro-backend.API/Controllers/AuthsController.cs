@@ -33,7 +33,7 @@ namespace giaoanpro_backend.API.Controllers
 
 		[HttpPost("admin/register")]
 		[Authorize(Roles = "Admin")]
-        public async Task<IActionResult> RegisterByAdmin([FromBody] RegisterRequest request,[FromQuery] UserRole role)
+		public async Task<IActionResult> RegisterByAdmin([FromBody] RegisterRequest request, [FromQuery] UserRole role)
 		{
 			var result = await _authService.RegisterAsync(request, role);
 			return result.Success ? Ok(result) : BadRequest(result);

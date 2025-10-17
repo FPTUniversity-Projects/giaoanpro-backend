@@ -10,7 +10,6 @@ namespace giaoanpro_backend.Domain.Entities
 		public string Text { get; set; } = string.Empty;
 
 		// Navigation properties
-		public virtual QuestionBank Bank { get; set; } = null!;
 		public virtual PromptLog Prompt { get; set; } = null!;
 		public virtual ICollection<QuestionOption> Options { get; set; } = new List<QuestionOption>();
 		public virtual ICollection<ExamQuestion> ExamQuestions { get; set; } = new List<ExamQuestion>();

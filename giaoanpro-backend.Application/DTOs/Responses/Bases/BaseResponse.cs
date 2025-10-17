@@ -15,10 +15,10 @@
 
 	public class BaseResponse<T> : BaseResponse
 	{
-		public T? Data { get; set; }
+		public T? Payload { get; set; }
 
 		public static BaseResponse<T> Ok(T data, string message = "Success")
-			=> new() { Success = true, Message = message, Data = data };
+			=> new() { Success = true, Message = message, Payload = data };
 
 		public static new BaseResponse<T> Fail(string message, List<string>? errors = null)
 			=> new() { Success = false, Message = message, Errors = errors };
