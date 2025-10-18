@@ -14,6 +14,8 @@ namespace giaoanpro_backend.Domain.Entities
 		public PaymentStatus Status { get; set; }
 		public string PaymentMethod { get; set; } = string.Empty; // "VNPAY", "Stripe", "MoMo"
 		public string GatewayTransactionId { get; set; } = string.Empty;
+		public string Description { get; set; } = string.Empty;
+		public string VnpResponseCode { get; set; } = string.Empty;
 
 		// Navigation property
 		public virtual Subscription Subscription { get; set; } = null!;

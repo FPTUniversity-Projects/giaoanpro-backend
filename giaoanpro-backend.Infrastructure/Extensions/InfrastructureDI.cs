@@ -1,4 +1,6 @@
 ﻿using giaoanpro_backend.Application.Interfaces.Repositories;
+using giaoanpro_backend.Application.Interfaces.Services._3PServices;
+using giaoanpro_backend.Infrastructure._3PServices;
 using giaoanpro_backend.Persistence.Context;
 using giaoanpro_backend.Persistence.Repositories;
 using Microsoft.EntityFrameworkCore;
@@ -15,6 +17,10 @@ namespace giaoanpro_backend.Infrastructure.Extensions
 			// Keep explicit registrations for special types
 			services.AddScoped<IUnitOfWork, UnitOfWork>();
 			services.AddScoped(typeof(IGenericRepository<>), typeof(GenericRepository<>));
+
+			// Register 3rd-party / infrastructure-specific services required by application layer
+			// e.g. VnPay service used by SubscriptionService
+			services.AddScoped<IVnPayService, VnPayService>();
 
 			// Convention-based registration for repository implementations in the Persistence assembly.
 			// It will register classes where an interface named "I{ClassName}" exists.
