@@ -3,7 +3,7 @@ using giaoanpro_backend.Domain.Enums;
 
 namespace giaoanpro_backend.Domain.Entities
 {
-	public class Subscription : AuditableEntity
+	public class Subscription : AuditableEntity, ISoftDeleteEntity
 	{
 		public Guid Id { get; set; }
 		public Guid UserId { get; set; }
@@ -15,5 +15,8 @@ namespace giaoanpro_backend.Domain.Entities
 		// Navigation properties
 		public virtual User User { get; set; } = null!;
 		public virtual SubscriptionPlan Plan { get; set; } = null!;
+
+		// ISoftDeleteEntity implementation
+		public DateTime? DeletedAt { get; set; }
 	}
 }

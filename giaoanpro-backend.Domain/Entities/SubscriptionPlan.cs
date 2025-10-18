@@ -2,7 +2,7 @@
 
 namespace giaoanpro_backend.Domain.Entities
 {
-	public class SubscriptionPlan : AuditableEntity
+	public class SubscriptionPlan : AuditableEntity, ISoftDeleteEntity
 	{
 		public Guid Id { get; set; }
 		public string Name { get; set; } = string.Empty;
@@ -12,5 +12,8 @@ namespace giaoanpro_backend.Domain.Entities
 
 		// Navigation properties
 		public ICollection<Subscription> UserSubscriptions { get; set; } = new List<Subscription>();
+
+		// ISoftDeleteEntity implementation
+		public DateTime? DeletedAt { get; set; }
 	}
 }

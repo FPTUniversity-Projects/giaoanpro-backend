@@ -14,7 +14,7 @@ namespace giaoanpro_backend.Infrastructure.Extensions
 			// Register Repositories
 			services.AddScoped<IUnitOfWork, UnitOfWork>();
 			services.AddScoped(typeof(IGenericRepository<>), typeof(GenericRepository<>));
-            services.AddScoped<IAuthRepository, AuthRepository>();
+			services.AddScoped<IAuthRepository, AuthRepository>();
 
 			// Register Third-Party Services (e.g., Email, SMS)
 

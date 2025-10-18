@@ -1,6 +1,7 @@
 ﻿using giaoanpro_backend.Domain.Bases;
 using giaoanpro_backend.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
+using System.Linq.Expressions;
 using Attribute = giaoanpro_backend.Domain.Entities.Attribute;
 
 namespace giaoanpro_backend.Persistence.Context
@@ -35,6 +36,26 @@ namespace giaoanpro_backend.Persistence.Context
 		protected override void OnModelCreating(ModelBuilder modelBuilder)
 		{
 			base.OnModelCreating(modelBuilder);
+
+			// Apply global query filter for soft-delete entities (DeletedAt == null)
+			var softDeleteInterface = typeof(ISoftDeleteEntity);
+			var entityTypes = modelBuilder.Model.GetEntityTypes()
+				.Where(t => !t.IsOwned() && t.ClrType != null && softDeleteInterface.IsAssignableFrom(t.ClrType))
+				.ToList();
+
+			foreach (var et in entityTypes)
+			{
+				var clrType = et.ClrType!;
+				// Build lambda: (e) => EF.Property<DateTime?>(e, "DeletedAt") == null
+				var parameter = Expression.Parameter(clrType, "e");
+				var efPropertyMethod = typeof(EF).GetMethod(nameof(EF.Property), new[] { typeof(object), typeof(string) })!
+					.MakeGenericMethod(typeof(DateTime?));
+				var deletedAtProperty = Expression.Call(efPropertyMethod, parameter, Expression.Constant(nameof(ISoftDeleteEntity.DeletedAt)));
+				var compareNull = Expression.Equal(deletedAtProperty, Expression.Constant(null, typeof(DateTime?)));
+				var lambda = Expression.Lambda(compareNull, parameter);
+
+				modelBuilder.Entity(clrType).HasQueryFilter(lambda);
+			}
 
 			// Composite keys for join entities
 			modelBuilder.Entity<ClassMember>()
@@ -267,32 +288,46 @@ namespace giaoanpro_backend.Persistence.Context
 
 		public override int SaveChanges()
 		{
-			UpdateAuditFields();
+			UpdateAuditAndSoftDeleteFields();
 			return base.SaveChanges();
 		}
 
-		public override Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
+		public override async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
 		{
-			UpdateAuditFields();
-			return base.SaveChangesAsync(cancellationToken);
+			UpdateAuditAndSoftDeleteFields();
+			return await base.SaveChangesAsync(cancellationToken);
 		}
 
-		private void UpdateAuditFields()
+		private void UpdateAuditAndSoftDeleteFields()
 		{
 			var now = DateTime.UtcNow;
-			var entries = ChangeTracker.Entries<AuditableEntity>();
 
-			foreach (var entry in entries)
+			foreach (var entry in ChangeTracker.Entries())
 			{
-				if (entry.State == EntityState.Added)
+				if (entry.Entity is ISoftDeleteEntity softDeleteEntity)
 				{
-					entry.Entity.CreatedAt = now;
-					entry.Entity.UpdatedAt = now;
+					if (entry.State == EntityState.Deleted)
+					{
+						entry.State = EntityState.Modified;
+						softDeleteEntity.DeletedAt = now;
+					}
+					else if (entry.State == EntityState.Added)
+					{
+						softDeleteEntity.DeletedAt = null;
+					}
 				}
-				else if (entry.State == EntityState.Modified)
+
+				if (entry.Entity is AuditableEntity auditableEntity)
 				{
-					// Prevent overriding CreatedAt
-					entry.Entity.UpdatedAt = now;
+					if (entry.State == EntityState.Added)
+					{
+						auditableEntity.CreatedAt = now;
+						auditableEntity.UpdatedAt = now;
+					}
+					else if (entry.State == EntityState.Modified)
+					{
+						auditableEntity.UpdatedAt = now;
+					}
 				}
 			}
 		}
