@@ -64,7 +64,8 @@ namespace giaoanpro_backend.Persistence.Repositories
 			return Task.FromResult(tokenString);
 		}
 
-		public async Task<User> RegisterViaGoogleAsync(GoogleJsonWebSignature.Payload payload)
+		// Accept optional preferred role; never assign Admin via Google registration.
+		public async Task<User> RegisterViaGoogleAsync(GoogleJsonWebSignature.Payload payload, UserRole? preferredRole = null)
 		{
 			if (payload == null || string.IsNullOrWhiteSpace(payload.Email))
 			{
@@ -81,6 +82,13 @@ namespace giaoanpro_backend.Persistence.Repositories
 					return existing;
 				}
 
+				// Decide role: prefer provided (if not Admin), otherwise default to Student.
+				UserRole roleToAssign = UserRole.Student;
+				if (preferredRole.HasValue && preferredRole.Value != UserRole.Admin)
+				{
+					roleToAssign = preferredRole.Value;
+				}
+
 				var tempPassword = GenerateTemporaryPassword(12);
 				var newUser = new User
 				{
@@ -89,7 +97,7 @@ namespace giaoanpro_backend.Persistence.Repositories
 					FullName = payload.Name ?? string.Empty,
 					PasswordHash = HashPassword(tempPassword),
 					IsActive = true,
-					Role = UserRole.User
+					Role = roleToAssign
 				};
 
 				await _userRepository.AddAsync(newUser);
@@ -100,7 +108,7 @@ namespace giaoanpro_backend.Persistence.Repositories
 					return null!;
 				}
 
-				_logger.LogInformation("Created new user via Google for {Email}.", payload.Email);
+				_logger.LogInformation("Created new user via Google for {Email} with role {Role}.", payload.Email, roleToAssign);
 				return newUser;
 			}
 			catch (Exception ex)

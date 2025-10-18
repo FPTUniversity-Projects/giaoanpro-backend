@@ -45,15 +45,16 @@ namespace giaoanpro_backend.Application.Services
 
 		private async Task<TokenResponse> GenerateTokenResponseAsync(User user)
 		{
-			var role = user.Role.ToString() ?? UserRole.User.ToString();
+			var role = user.Role.ToString();
 			var token = await _authRepository.GenerateJwtToken(user, role);
 			return new TokenResponse()
 			{
-				AccessToken = token
+				AccessToken = token,
+				Role = user.Role
 			};
 		}
 
-		public async Task<BaseResponse<TokenResponse>> LoginWithGoogleAsync(GoogleLoginRequest request)
+		public async Task<BaseResponse<TokenResponse>> LoginWithGoogleAsync(GoogleLoginRequest request, UserRole? preferredRole = null)
 		{
 			if (request is null || string.IsNullOrWhiteSpace(request.IdToken))
 				return BaseResponse<TokenResponse>.Fail("Invalid request");
@@ -78,8 +79,8 @@ namespace giaoanpro_backend.Application.Services
 				user = await _userRepository.GetByConditionAsync(u => u.Email == email);
 				if (user is null)
 				{
-					// Attempt registration via repository; repository returns created user or null on failure.
-					user = await _authRepository.RegisterViaGoogleAsync(payload);
+					// Create the user and apply preferredRole if provided (but never Admin).
+					user = await _authRepository.RegisterViaGoogleAsync(payload, preferredRole);
 					if (user is null)
 						return BaseResponse<TokenResponse>.Fail("Failed to create user account from Google payload");
 				}
@@ -92,10 +93,12 @@ namespace giaoanpro_backend.Application.Services
 			if (!user.IsActive)
 				return BaseResponse<TokenResponse>.Fail("Your account is inactive.");
 
+			if (user.Role == UserRole.Admin)
+				return BaseResponse<TokenResponse>.Fail("Admin accounts must be created by an administrator.");
+
 			var tokenResponse = await GenerateTokenResponseAsync(user);
 
-			var message = !string.IsNullOrWhiteSpace(user.Role.ToString()) ? "Google login successful" : "Google registration and login successful";
-
+			var message = "Google login successful";
 			return BaseResponse<TokenResponse>.Ok(tokenResponse, message);
 		}
 
@@ -114,7 +117,7 @@ namespace giaoanpro_backend.Application.Services
 				Email = request.Email,
 				Username = request.Username,
 				IsActive = true,
-				Role = string.IsNullOrWhiteSpace(role.ToString()) ? UserRole.User : role,
+				Role = role,
 				PasswordHash = HashPassword(request.Password)
 			};
 

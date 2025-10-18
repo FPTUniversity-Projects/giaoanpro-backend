@@ -11,7 +11,7 @@ namespace giaoanpro_backend.Domain.Entities
 		public string Email { get; set; } = string.Empty;
 		public string FullName { get; set; } = string.Empty;
 		public bool IsActive { get; set; }
-		public UserRole Role { get; set; } = UserRole.User;
+		public UserRole Role { get; set; }
 
 		// Navigation properties
 		public ICollection<Class> ClassesTaught { get; set; } = new List<Class>();

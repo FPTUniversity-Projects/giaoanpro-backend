@@ -7,8 +7,9 @@ namespace giaoanpro_backend.Application.Interfaces.Services
 {
 	public interface IAuthService
 	{
-		Task<BaseResponse<string>> RegisterAsync(RegisterRequest register, UserRole role = UserRole.User);
+		Task<BaseResponse<string>> RegisterAsync(RegisterRequest register, UserRole role);
 		Task<BaseResponse<TokenResponse>> LoginAsync(LoginRequest login);
-		Task<BaseResponse<TokenResponse>> LoginWithGoogleAsync(GoogleLoginRequest request);
+		public Task<BaseResponse<TokenResponse>> LoginWithGoogleAsync(GoogleLoginRequest request, UserRole? preferredRole = null);
+
 	}
 }

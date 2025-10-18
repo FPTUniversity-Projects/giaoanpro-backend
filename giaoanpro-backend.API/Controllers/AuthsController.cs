@@ -25,9 +25,13 @@ namespace giaoanpro_backend.API.Controllers
 		}
 
 		[HttpPost("register")]
-		public async Task<IActionResult> Register([FromBody] RegisterRequest request)
+		public async Task<IActionResult> Register([FromBody] RegisterRequest request, [FromQuery] UserRole role)
 		{
-			var result = await _authService.RegisterAsync(request);
+			if (role == UserRole.Admin)
+			{
+				return Forbid("Cannot register as Admin role.");
+			}
+			var result = await _authService.RegisterAsync(request, role);
 			return result.Success ? Ok(result) : BadRequest(result);
 		}
 
@@ -40,10 +44,18 @@ namespace giaoanpro_backend.API.Controllers
 		}
 
 		[HttpPost("google-login")]
-		public async Task<IActionResult> GoogleLogin([FromBody] GoogleLoginRequest request)
+		public async Task<IActionResult> GoogleLogin([FromBody] GoogleLoginRequest request, [FromQuery] UserRole? role = null)
 		{
-			var result = await _authService.LoginWithGoogleAsync(request);
-			return result.Success ? Ok(result) : Unauthorized(result);
+			var result = await _authService.LoginWithGoogleAsync(request, role);
+			if (!result.Success)
+				return Unauthorized(result);
+
+			if (result.Payload is not null && result.Payload.Role == UserRole.Admin)
+			{
+				return Forbid("Admin role cannot be provisioned via Google login.");
+			}
+
+			return Ok(result);
 		}
 
 		[HttpGet("Test")]
