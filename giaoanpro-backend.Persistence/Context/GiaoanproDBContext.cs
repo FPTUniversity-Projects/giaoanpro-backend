@@ -32,6 +32,7 @@ namespace giaoanpro_backend.Persistence.Context
 		public DbSet<QuestionOption> QuestionOptions { get; set; }
 		public DbSet<Activity> Activitys { get; set; }
 		public DbSet<ClassMember> ClassMembers { get; set; }
+		public DbSet<Payment> Payments { get; set; }
 
 		protected override void OnModelCreating(ModelBuilder modelBuilder)
 		{
@@ -179,6 +180,13 @@ namespace giaoanpro_backend.Persistence.Context
 				.HasForeignKey(s => s.PlanId)
 				.OnDelete(DeleteBehavior.Restrict);
 
+			// Payment -> Subscription
+			modelBuilder.Entity<Payment>()
+				.HasOne(p => p.Subscription)
+				.WithMany(s => s.Payments)
+				.HasForeignKey(p => p.SubscriptionId)
+				.OnDelete(DeleteBehavior.Cascade);
+
 			// Exam -> Matrix, Creator and activity wiring
 			modelBuilder.Entity<Exam>()
 				.HasOne(e => e.Matrix)
@@ -260,6 +268,12 @@ namespace giaoanpro_backend.Persistence.Context
 			modelBuilder.Entity<SubscriptionPlan>()
 				.Property(sp => sp.Price)
 				.HasPrecision(18, 2);
+
+			// Payment: set precision for decimal AmountPaid to avoid truncation warnings
+			modelBuilder.Entity<Payment>()
+				.Property(p => p.AmountPaid)
+				.HasPrecision(18, 2);
+
 
 			// Enums stored as strings
 			modelBuilder.Entity<Attempt>()
