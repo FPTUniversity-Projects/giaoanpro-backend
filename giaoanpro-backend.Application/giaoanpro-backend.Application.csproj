@@ -12,6 +12,7 @@
   </ItemGroup>
 
   <ItemGroup>
+	<Folder Include="Interfaces\Services\3PServices\" />
 	<Folder Include="Mappings\" />
 	<Folder Include="Validators\" />
   </ItemGroup>
