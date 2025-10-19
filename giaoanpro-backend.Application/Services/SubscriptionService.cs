@@ -6,7 +6,6 @@ using giaoanpro_backend.Application.Interfaces.Repositories;
 using giaoanpro_backend.Application.Interfaces.Services;
 using giaoanpro_backend.Application.Interfaces.Services._3PServices;
 using giaoanpro_backend.Domain.Entities;
-using giaoanpro_backend.Domain.Enums;
 using Microsoft.AspNetCore.Http;
 
 namespace giaoanpro_backend.Application.Services
