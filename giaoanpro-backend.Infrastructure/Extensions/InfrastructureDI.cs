@@ -1,9 +1,12 @@
 ﻿using giaoanpro_backend.Application.Interfaces.Repositories;
+using giaoanpro_backend.Application.Interfaces.Services._3PServices;
+using giaoanpro_backend.Infrastructure._3PServices;
 using giaoanpro_backend.Persistence.Context;
 using giaoanpro_backend.Persistence.Repositories;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using System.Reflection;
 
 namespace giaoanpro_backend.Infrastructure.Extensions
 {
@@ -11,12 +14,17 @@ namespace giaoanpro_backend.Infrastructure.Extensions
 	{
 		public static IServiceCollection AddInfrastructureServices(this IServiceCollection services, IConfiguration configuration)
 		{
-			// Register Repositories
+			// Keep explicit registrations for special types
 			services.AddScoped<IUnitOfWork, UnitOfWork>();
 			services.AddScoped(typeof(IGenericRepository<>), typeof(GenericRepository<>));
-			services.AddScoped<IAuthRepository, AuthRepository>();
 
-			// Register Third-Party Services (e.g., Email, SMS)
+			// Register 3rd-party / infrastructure-specific services required by application layer
+			// e.g. VnPay service used by SubscriptionService
+			services.AddScoped<IVnPayService, VnPayService>();
+
+			// Convention-based registration for repository implementations in the Persistence assembly.
+			// It will register classes where an interface named "I{ClassName}" exists.
+			RegisterRepositoriesByConvention(services, typeof(UnitOfWork).Assembly);
 
 			// DBContext
 			var connectionString = configuration["DATABASE_CONNECTION_STRING"];
@@ -44,6 +52,35 @@ namespace giaoanpro_backend.Infrastructure.Extensions
 			});
 
 			return services;
+		}
+
+		private static void RegisterRepositoriesByConvention(IServiceCollection services, Assembly repoAssembly)
+		{
+			if (repoAssembly == null) return;
+
+			var implTypes = repoAssembly.GetTypes()
+				.Where(t => t.IsClass
+							&& !t.IsAbstract
+							&& !t.IsGenericType
+							&& t.IsPublic);
+
+			foreach (var impl in implTypes)
+			{
+				// Skip types registered explicitly
+				if (impl == typeof(UnitOfWork)) continue;
+				if (impl.IsGenericTypeDefinition) continue;
+
+				// find interface named I{ConcreteName}
+				var match = impl.GetInterfaces()
+					.FirstOrDefault(i => i.Name == $"I{impl.Name}");
+
+				if (match == null) continue;
+
+				// Avoid registering open-generic mapping or duplicates (IGenericRepository<> handled explicitly)
+				if (match.IsGenericType) continue;
+
+				services.AddScoped(match, impl);
+			}
 		}
 	}
 }

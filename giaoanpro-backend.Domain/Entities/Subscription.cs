@@ -15,6 +15,7 @@ namespace giaoanpro_backend.Domain.Entities
 		// Navigation properties
 		public virtual User User { get; set; } = null!;
 		public virtual SubscriptionPlan Plan { get; set; } = null!;
+		public ICollection<Payment> Payments { get; set; } = new List<Payment>();
 
 		// ISoftDeleteEntity implementation
 		public DateTime? DeletedAt { get; set; }
