@@ -6,6 +6,6 @@ namespace giaoanpro_backend.Application.Interfaces.Services._3PServices
 {
 	public interface IVnPayService
 	{
-		public Task<SubscriptionCheckoutResponse> CreatePaymentUrl(HttpContext context, VnPaymentRequest request);
+		public Task<SubscriptionCheckoutResponse> CreatePaymentUrlAsync(HttpContext context, VnPaymentRequest request);
 	}
 }

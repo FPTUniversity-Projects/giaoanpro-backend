@@ -18,7 +18,7 @@ namespace giaoanpro_backend.Infrastructure._3PServices
 
 		//private readonly IWebHostEnvironment _env;
 
-		public async Task<SubscriptionCheckoutResponse> CreatePaymentUrl(HttpContext context, VnPaymentRequest request)
+		public async Task<SubscriptionCheckoutResponse> CreatePaymentUrlAsync(HttpContext context, VnPaymentRequest request)
 		{
 			//var returnUrl = _webHostEnvironment.IsDevelopment()
 			//    ? _config["VnPay:ReturnUrl"]
