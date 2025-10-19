@@ -294,6 +294,9 @@ namespace giaoanpro_backend.Persistence.Context
 			modelBuilder.Entity<User>()
 				.Property(u => u.Role)
 				.HasConversion<string>();
+			modelBuilder.Entity<Payment>()
+				.Property(p => p.Status)
+				.HasConversion<string>();
 
 			OnModelCreatingPartial(modelBuilder);
 		}

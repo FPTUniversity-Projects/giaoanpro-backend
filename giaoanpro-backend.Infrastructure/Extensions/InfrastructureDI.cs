@@ -18,8 +18,7 @@ namespace giaoanpro_backend.Infrastructure.Extensions
 			services.AddScoped<IUnitOfWork, UnitOfWork>();
 			services.AddScoped(typeof(IGenericRepository<>), typeof(GenericRepository<>));
 
-			// Register 3rd-party / infrastructure-specific services required by application layer
-			// e.g. VnPay service used by SubscriptionService
+			// Register infrastructure 3rd-party services used by Application layer
 			services.AddScoped<IVnPayService, VnPayService>();
 
 			// Convention-based registration for repository implementations in the Persistence assembly.

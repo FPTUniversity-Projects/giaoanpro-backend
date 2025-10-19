@@ -1,5 +1,6 @@
 ﻿using giaoanpro_backend.Application.DTOs.Requests.VnPays;
 using giaoanpro_backend.Application.DTOs.Responses.Subscriptions;
+using giaoanpro_backend.Application.DTOs.Responses.VnPays;
 using giaoanpro_backend.Application.Interfaces.Services._3PServices;
 using giaoanpro_backend.Infrastructure.Extensions;
 using Microsoft.AspNetCore.Http;
@@ -51,6 +52,75 @@ namespace giaoanpro_backend.Infrastructure._3PServices
 
 			string paymentUrl = vnpay.CreateRequestUrl(_config["VnPay:PaymentUrl"] ?? string.Empty, _config["VnPay:HashSecret"] ?? string.Empty);
 			return new SubscriptionCheckoutResponse { PaymentUrl = paymentUrl, SubscriptionId = request.SubscriptionId };
+		}
+
+		public async Task<VnPaymentResponse> GetPaymentResponseAsync(IQueryCollection queryParameters)
+		{
+			var vnpay = new VnPayLibrary();
+			foreach (var item in queryParameters)
+			{
+				var key = item.Key;
+				var value = item.Value;
+				if (!string.IsNullOrEmpty(key) && key.StartsWith("vnp_"))
+				{
+					vnpay.AddResponseData(key, value.ToString());
+				}
+			}
+
+			if (!Guid.TryParse(vnpay.GetResponseData("vnp_TxnRef"), out var txnRef))
+			{
+				return new VnPaymentResponse
+				{
+					IsSuccess = false,
+					Message = "Invalid or missing vnp_TxnRef in VNPay response"
+				};
+			}
+
+			// Get secure hash from response data
+			var secureHashString = vnpay.GetResponseData("vnp_SecureHash");
+			if (string.IsNullOrEmpty(secureHashString))
+			{
+				secureHashString = queryParameters.TryGetValue("vnp_SecureHash", out var sec) ? sec.ToString() : string.Empty;
+			}
+			if (string.IsNullOrEmpty(secureHashString))
+			{
+				return new VnPaymentResponse
+				{
+					IsSuccess = false,
+					Message = "Missing vnp_SecureHash in VNPay response"
+				};
+			}
+
+			// Validate signature
+			var secret = _config["VnPay:HashSecret"] ?? string.Empty;
+			bool checkSignature = vnpay.ValidateSignature(secureHashString, secret);
+			if (!checkSignature)
+			{
+				return new VnPaymentResponse
+				{
+					IsSuccess = false,
+					Message = "Signature validation failed"
+				};
+			}
+
+			var vnp_TranNo = vnpay.GetResponseData("vnp_TransactionNo");
+			var vnp_ResponseCode = vnpay.GetResponseData("vnp_ResponseCode");
+			var vnp_OrderInfo = vnpay.GetResponseData("vnp_OrderInfo");
+			var rawAmountStr = vnpay.GetResponseData("vnp_Amount");
+
+			// consider success only if signature is valid and response code is "00"
+			var success = checkSignature && string.Equals(vnp_ResponseCode, "00", StringComparison.OrdinalIgnoreCase);
+
+			return new VnPaymentResponse
+			{
+				IsSuccess = success,
+				Message = success ? "Payment successful" : "Payment failed",
+				PaymentId = txnRef,
+				TransactionNo = vnp_TranNo,
+				PaymentInfo = vnp_OrderInfo,
+				ResponseCode = vnp_ResponseCode,
+				Amount = decimal.TryParse(rawAmountStr, out var amt) ? amt / 100 : 0m
+			};
 		}
 	}
 }
