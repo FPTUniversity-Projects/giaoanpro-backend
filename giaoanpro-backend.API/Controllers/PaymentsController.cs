@@ -15,9 +15,9 @@ namespace giaoanpro_backend.API.Controllers
 		}
 
 		[HttpGet("vnpay-callback")]
-		public async Task<IActionResult> HandleVnPayCallback([FromQuery] IQueryCollection queryParameters)
+		public async Task<IActionResult> HandleVnPayCallback()
 		{
-			var result = await _paymentService.ProcessVnPayPaymentCallbackAsync(queryParameters);
+			var result = await _paymentService.ProcessVnPayPaymentCallbackAsync(Request.Query);
 			return result.Success ? Ok(result) : BadRequest(result);
 		}
 	}

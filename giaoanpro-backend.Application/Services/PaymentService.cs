@@ -22,9 +22,9 @@ namespace giaoanpro_backend.Application.Services
 		public async Task<BaseResponse<bool>> ProcessVnPayPaymentCallbackAsync(IQueryCollection queryParameters)
 		{
 			var vnPayResponse = await _vnPayService.GetPaymentResponseAsync(queryParameters);
-			if (!vnPayResponse.IsSuccess)
+			if (vnPayResponse == null || vnPayResponse.PaymentId == Guid.Empty)
 			{
-				return BaseResponse<bool>.Fail("VNPay payment failed: " + vnPayResponse.Message);
+				return BaseResponse<bool>.Fail("VNPay payment failed");
 			}
 
 			// check payment 
