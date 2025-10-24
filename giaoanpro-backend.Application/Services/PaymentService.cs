@@ -1,4 +1,5 @@
 ﻿using giaoanpro_backend.Application.DTOs.Responses.Bases;
+using giaoanpro_backend.Application.DTOs.Responses.VnPays;
 using giaoanpro_backend.Application.Interfaces.Repositories;
 using giaoanpro_backend.Application.Interfaces.Services;
 using giaoanpro_backend.Application.Interfaces.Services._3PServices;
@@ -17,6 +18,36 @@ namespace giaoanpro_backend.Application.Services
 		{
 			_unitOfWork = unitOfWork;
 			_vnPayService = vnPayService;
+		}
+
+		public async Task<BaseResponse<VnPayReturnResponse>> GetVnPayReturnResponseAsync(IQueryCollection queryParameters)
+		{
+			var vnPayResponse = await _vnPayService.GetPaymentResponseAsync(queryParameters);
+			if (vnPayResponse == null || vnPayResponse.PaymentId == Guid.Empty)
+			{
+				return BaseResponse<VnPayReturnResponse>.Fail("Invalid VNPay response.");
+			}
+
+			if (vnPayResponse.IsSuccess == false)
+			{
+				return BaseResponse<VnPayReturnResponse>.Fail("VNPay payment failed: " + vnPayResponse.Message);
+			}
+
+			var payment = await _unitOfWork.Repository<Payment>().GetByIdAsync(vnPayResponse.PaymentId);
+			if (payment == null)
+			{
+				return BaseResponse<VnPayReturnResponse>.Fail("Payment record not found.");
+			}
+
+			var subscriptionId = payment.SubscriptionId;
+
+			var payload = new VnPayReturnResponse
+			{
+				PaymentId = payment.Id,
+				SubscriptionId = subscriptionId
+			};
+
+			return BaseResponse<VnPayReturnResponse>.Ok(payload);
 		}
 
 		public async Task<BaseResponse<bool>> ProcessVnPayPaymentCallbackAsync(IQueryCollection queryParameters)

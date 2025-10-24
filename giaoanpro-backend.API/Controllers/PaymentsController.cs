@@ -1,7 +1,7 @@
 ﻿using giaoanpro_backend.Application.Interfaces.Services;
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Primitives;
+using System.Text.Json;
 
 namespace giaoanpro_backend.API.Controllers
 {
@@ -10,23 +10,22 @@ namespace giaoanpro_backend.API.Controllers
 	public class PaymentsController : ControllerBase
 	{
 		private readonly IPaymentService _paymentService;
+		private readonly ILogger<PaymentsController> _logger;
 
-		public PaymentsController(IPaymentService paymentService)
+		public PaymentsController(IPaymentService paymentService, ILogger<PaymentsController> logger)
 		{
 			_paymentService = paymentService;
+			_logger = logger;
 		}
 
-		[HttpGet("vnpay-callback")]
+		[HttpGet("vnpay-return")]
 		public async Task<IActionResult> HandleVnPayCallback()
 		{
-			var result = await _paymentService.ProcessVnPayPaymentCallbackAsync(Request.Query);
-			return result.Success ? Ok(result) : BadRequest(result);
+			var result = await _paymentService.GetVnPayReturnResponseAsync(Request.Query);
+			return Ok(result);
 		}
 
-		// VNPay server-to-server notification (IPN). VNPay may POST form-encoded data.
-		// AllowAnonymous because the call comes from VNPay external server.
-		[HttpPost("vnpay-ipn")]
-		[AllowAnonymous]
+		[HttpGet("vnpay-ipn")]
 		public async Task<IActionResult> HandleVnPayIpn()
 		{
 			IQueryCollection queryParameters;
@@ -47,6 +46,7 @@ namespace giaoanpro_backend.API.Controllers
 				// fallback to query string
 				queryParameters = Request.Query;
 			}
+			_logger.LogInformation("VNPay IPN callback received: {query}", JsonSerializer.Serialize(queryParameters));
 
 			var result = await _paymentService.ProcessVnPayPaymentCallbackAsync(queryParameters);
 
