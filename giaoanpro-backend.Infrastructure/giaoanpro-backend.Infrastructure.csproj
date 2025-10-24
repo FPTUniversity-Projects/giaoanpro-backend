@@ -9,6 +9,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\giaoanpro-backend.Persistence\giaoanpro-backend.Persistence.csproj" />
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />  
   </ItemGroup>
 
   <ItemGroup>

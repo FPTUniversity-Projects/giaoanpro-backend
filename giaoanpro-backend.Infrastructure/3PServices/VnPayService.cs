@@ -3,28 +3,29 @@ using giaoanpro_backend.Application.DTOs.Responses.Subscriptions;
 using giaoanpro_backend.Application.DTOs.Responses.VnPays;
 using giaoanpro_backend.Application.Interfaces.Services._3PServices;
 using giaoanpro_backend.Infrastructure.Extensions;
+using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Hosting;
 
 namespace giaoanpro_backend.Infrastructure._3PServices
 {
 	public class VnPayService : IVnPayService
 	{
 		private readonly IConfiguration _config;
+		private readonly IWebHostEnvironment _webHostEnvironment;
 
-		public VnPayService(IConfiguration config)
+		public VnPayService(IConfiguration config, IWebHostEnvironment webHostEnvironment)
 		{
 			_config = config;
+			_webHostEnvironment = webHostEnvironment;
 		}
-
-		//private readonly IWebHostEnvironment _env;
 
 		public async Task<SubscriptionCheckoutResponse> CreatePaymentUrlAsync(HttpContext context, VnPaymentRequest request)
 		{
-			//var returnUrl = _webHostEnvironment.IsDevelopment()
-			//    ? _config["VnPay:ReturnUrl"]
-			//    : _config["VnPay:ReturnUrlProduct"];
-			var returnUrl = _config["VnPay:ReturnUrl"] ?? string.Empty;
+			var returnUrl = _webHostEnvironment.EnvironmentName == Environments.Development
+				? _config["VnPay:ReturnUrl"]
+				: _config["VnPay:ReturnUrlProduct"];
 
 			var vnpay = new VnPayLibrary();
 			vnpay.AddRequestData("vnp_Version", _config["VnPay:Version"] ?? string.Empty);

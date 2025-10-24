@@ -58,7 +58,7 @@ builder.Services.AddSwaggerGen(c =>
 {
 	c.SwaggerDoc("v1", new OpenApiInfo
 	{
-		Title = "StudeeHub_API",
+		Title = "GiaoAnPro_API",
 		Version = "v1"
 	});
 	c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme()
