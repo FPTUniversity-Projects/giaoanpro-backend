@@ -7,7 +7,9 @@ using giaoanpro_backend.Application.Interfaces.Services;
 using giaoanpro_backend.Application.Interfaces.Services._3PServices;
 using giaoanpro_backend.Domain.Entities;
 using giaoanpro_backend.Domain.Enums;
+using MapsterMapper;
 using Microsoft.AspNetCore.Http;
+using Microsoft.EntityFrameworkCore;
 
 namespace giaoanpro_backend.Application.Services
 {
@@ -15,11 +17,33 @@ namespace giaoanpro_backend.Application.Services
 	{
 		private readonly IUnitOfWork _unitOfWork;
 		private readonly IVnPayService _vnPayService;
+		private readonly IMapper _mapper;
 
-		public SubscriptionService(IUnitOfWork unitOfWork, IVnPayService vnPayService)
+		public SubscriptionService(IUnitOfWork unitOfWork, IVnPayService vnPayService, IMapper mapper)
 		{
 			_unitOfWork = unitOfWork;
 			_vnPayService = vnPayService;
+			_mapper = mapper;
+		}
+
+		public async Task<BaseResponse<string>> CancelSubscriptionAsync(Guid subscriptionId, Guid userId)
+		{
+			var subscription = await _unitOfWork.Repository<Subscription>().
+				GetByConditionAsync(s => s.Id == subscriptionId && s.UserId == userId);
+			if (subscription == null)
+			{
+				return BaseResponse<string>.Fail("Subscription not found.");
+			}
+			if (subscription.Status != SubscriptionStatus.Active)
+			{
+				return BaseResponse<string>.Fail("Only active subscriptions can be cancelled.");
+			}
+			subscription.Status = SubscriptionStatus.Canceled;
+			_unitOfWork.Repository<Subscription>().Update(subscription);
+			var result = await _unitOfWork.SaveChangesAsync();
+			return result
+				? BaseResponse<string>.Ok("Subscription cancelled successfully.")
+				: BaseResponse<string>.Fail("Failed to cancel subscription.");
 		}
 
 		public async Task<BaseResponse<SubscriptionCheckoutResponse>> CreateSubscriptionCheckoutSessionAsync(SubscriptionCheckoutRequest request, HttpContext httpContext)
@@ -35,6 +59,32 @@ namespace giaoanpro_backend.Application.Services
 			await _unitOfWork.BeginTransactionAsync();
 			try
 			{
+				// If the plan is free (price == 0) activate subscription immediately without creating a payment or calling VNPay.
+				if (plan.Price <= 0m)
+				{
+					subscription.Status = SubscriptionStatus.Active;
+
+					_unitOfWork.Repository<Subscription>().Update(subscription);
+
+					var saved = await _unitOfWork.SaveChangesAsync();
+					if (!saved)
+					{
+						await _unitOfWork.RollbackTransactionAsync();
+						return BaseResponse<SubscriptionCheckoutResponse>.Fail("Failed to activate free subscription.");
+					}
+
+					await _unitOfWork.CommitTransactionAsync();
+
+					var freeResponse = new SubscriptionCheckoutResponse
+					{
+						PaymentUrl = string.Empty,
+						SubscriptionId = subscription.Id
+					};
+
+					return BaseResponse<SubscriptionCheckoutResponse>.Ok(freeResponse, "Free subscription activated successfully.");
+				}
+
+				// Paid flow (existing behavior)
 				var payment = new Payment
 				{
 					Id = Guid.NewGuid(),
@@ -75,6 +125,47 @@ namespace giaoanpro_backend.Application.Services
 				await _unitOfWork.RollbackTransactionAsync();
 				return BaseResponse<SubscriptionCheckoutResponse>.Fail("An error occurred while creating the checkout session.");
 			}
+		}
+
+		public async Task<BaseResponse<GetSubscriptionResponse>> GetCurrentAccessSubscriptionByUserIdAsync(Guid userId)
+		{
+			var subscription = await _unitOfWork.Repository<Subscription>()
+				.GetByConditionAsync(s => s.UserId == userId &&
+					(s.Status == SubscriptionStatus.Active ||
+						(s.Status == SubscriptionStatus.Canceled && s.EndDate >= DateTime.UtcNow)));
+			if (subscription == null)
+			{
+				return BaseResponse<GetSubscriptionResponse>.Fail("No access subscription found for the user.");
+			}
+			var response = _mapper.Map<GetSubscriptionResponse>(subscription);
+			return BaseResponse<GetSubscriptionResponse>.Ok(response, "Current access subscription retrieved successfully.");
+		}
+
+		public async Task<BaseResponse<GetSubscriptionDetailResponse>> GetUserSubscriptionByIdAsync(Guid subscriptionId, Guid userId)
+		{
+			var subscription = await _unitOfWork.Repository<Subscription>()
+				.GetByConditionAsync(s => s.Id == subscriptionId && s.UserId == userId,
+					include: s => s
+						.Include(sub => sub.Plan)
+						.Include(sub => sub.Payments));
+			if (subscription == null)
+			{
+				return BaseResponse<GetSubscriptionDetailResponse>.Fail("Subscription not found for the user.");
+			}
+			var response = _mapper.Map<GetSubscriptionDetailResponse>(subscription);
+			return BaseResponse<GetSubscriptionDetailResponse>.Ok(response, "Subscription retrieved successfully.");
+		}
+
+		public async Task<BaseResponse<List<GetSubscriptionResponse>>> GetSubscriptionHistoryByUserIdAsync(Guid userId)
+		{
+			var subscriptions = await _unitOfWork.Repository<Subscription>()
+				.GetAllAsync(s => s.UserId == userId);
+			if (!subscriptions.Any())
+			{
+				return BaseResponse<List<GetSubscriptionResponse>>.Ok(new List<GetSubscriptionResponse>(), "No subscription history found for the user.");
+			}
+			var response = _mapper.Map<List<GetSubscriptionResponse>>(subscriptions);
+			return BaseResponse<List<GetSubscriptionResponse>>.Ok(response, "Subscription history retrieved successfully.");
 		}
 
 		private async Task<BaseResponse<(Subscription, SubscriptionPlan)>> PrepareSubscriptionForCheckoutAsync(SubscriptionCheckoutRequest request)
