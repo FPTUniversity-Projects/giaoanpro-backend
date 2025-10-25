@@ -1,53 +1,72 @@
 ﻿using giaoanpro_backend.Application.DTOs.Requests.Subscriptions;
 using giaoanpro_backend.Application.Interfaces.Services;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using System.Security.Claims;
 
 namespace giaoanpro_backend.API.Controllers
 {
 	[Route("api/[controller]")]
 	[ApiController]
+	[Authorize]
 	public class SubscriptionsController : ControllerBase
 	{
 		private readonly ISubscriptionService _subscriptionService;
+
+		private Guid GetCurrentUserId()
+		{
+			var userIdString = User.FindFirstValue(ClaimTypes.NameIdentifier);
+			return Guid.TryParse(userIdString, out var userId) ? userId : Guid.Empty;
+		}
 
 		public SubscriptionsController(ISubscriptionService subscriptionService)
 		{
 			_subscriptionService = subscriptionService;
 		}
 
-		[HttpGet("user/{userId:guid}/subscriptions/current-access")]
-		public async Task<IActionResult> GetCurrentAccessSubscriptionByUserId([FromRoute] Guid userId)
+		[HttpGet("my-current-access")]
+		public async Task<IActionResult> GetMyCurrentAccessSubscription()
 		{
+			var userId = GetCurrentUserId();
 			var result = await _subscriptionService.GetCurrentAccessSubscriptionByUserIdAsync(userId);
-			return result.Success ? Ok(result) : BadRequest(result);
+
+			return result.Success ? Ok(result) : NotFound(result);
 		}
 
-		[HttpGet("user/{userId:guid}/subscriptions/history")]
-		public async Task<IActionResult> GetSubscriptionHistoryByUserId([FromRoute] Guid userId)
+		[HttpGet("my-history")]
+		public async Task<IActionResult> GetMySubscriptionHistory()
 		{
+			var userId = GetCurrentUserId();
 			var result = await _subscriptionService.GetSubscriptionHistoryByUserIdAsync(userId);
 			return Ok(result);
 		}
 
-		[HttpGet("user/{userId:guid}/subscriptions/{id:guid}")]
-		public async Task<IActionResult> GetSubscriptionById([FromRoute] Guid id, Guid userId)
+		[HttpGet("{id:guid}")]
+		public async Task<IActionResult> GetMySubscriptionById([FromRoute] Guid id)
 		{
+			var userId = GetCurrentUserId();
 			var result = await _subscriptionService.GetUserSubscriptionByIdAsync(id, userId);
-			return result.Success ? Ok(result) : BadRequest(result);
+
+			return result.Success ? Ok(result) : NotFound(result);
 		}
 
 		[HttpPost("checkout")]
 		public async Task<IActionResult> CreateSubscriptionCheckoutSession([FromBody] SubscriptionCheckoutRequest request)
 		{
+			request.UserId = GetCurrentUserId();
+
 			var result = await _subscriptionService.CreateSubscriptionCheckoutSessionAsync(request, HttpContext);
+
 			return result.Success ? Ok(result) : BadRequest(result);
 		}
 
-		[HttpPost("user/{userId:guid}/cancel/{subscriptionId:guid}")]
-		public async Task<IActionResult> CancelSubscription([FromRoute] Guid subscriptionId, Guid userId)
+		[HttpPost("{id:guid}/cancel")]
+		public async Task<IActionResult> CancelSubscription([FromRoute] Guid id)
 		{
-			var result = await _subscriptionService.CancelSubscriptionAsync(subscriptionId, userId);
-			return result.Success ? Ok(result) : BadRequest(result);
+			var userId = GetCurrentUserId();
+			var result = await _subscriptionService.CancelSubscriptionAsync(id, userId);
+
+			return result.Success ? Ok(result) : NotFound(result);
 		}
 	}
 }
