@@ -1,11 +1,14 @@
 ﻿using giaoanpro_backend.Application.DTOs.Responses.Bases;
+using giaoanpro_backend.Application.DTOs.Responses.Payments;
 using giaoanpro_backend.Application.DTOs.Responses.VnPays;
 using giaoanpro_backend.Application.Interfaces.Repositories;
 using giaoanpro_backend.Application.Interfaces.Services;
 using giaoanpro_backend.Application.Interfaces.Services._3PServices;
 using giaoanpro_backend.Domain.Entities;
 using giaoanpro_backend.Domain.Enums;
+using MapsterMapper;
 using Microsoft.AspNetCore.Http;
+using Microsoft.EntityFrameworkCore;
 
 namespace giaoanpro_backend.Application.Services
 {
@@ -13,11 +16,69 @@ namespace giaoanpro_backend.Application.Services
 	{
 		private readonly IUnitOfWork _unitOfWork;
 		private readonly IVnPayService _vnPayService;
+		private readonly IMapper _mapper;
 
-		public PaymentService(IUnitOfWork unitOfWork, IVnPayService vnPayService)
+		public PaymentService(IUnitOfWork unitOfWork, IVnPayService vnPayService, IMapper mapper)
 		{
 			_unitOfWork = unitOfWork;
 			_vnPayService = vnPayService;
+			_mapper = mapper;
+		}
+
+		public async Task<BaseResponse<List<GetPaymentResponse>>> GetPaymentHistoryByUserIdAsync(Guid userId)
+		{
+			if (userId == Guid.Empty)
+				return BaseResponse<List<GetPaymentResponse>>.Fail("Invalid user id.");
+
+			var payments = await _unitOfWork.Repository<Payment>().GetAllAsync(
+				filter: p => p.Subscription.UserId == userId,
+				include: q => q
+					.Include(p => p.Subscription)
+						.ThenInclude(s => s.Plan),
+				orderBy: q => q.OrderByDescending(p => p.PaymentDate),
+				asNoTracking: true
+			);
+
+			var paymentList = payments?.ToList() ?? [];
+
+			if (paymentList.Count == 0)
+			{
+				return BaseResponse<List<GetPaymentResponse>>.Ok([], "No history found.");
+			}
+
+			var dtoList = _mapper.Map<List<GetPaymentResponse>>(paymentList);
+			return BaseResponse<List<GetPaymentResponse>>.Ok(dtoList, "Retrieve history successfully.");
+		}
+
+		public async Task<BaseResponse<GetPaymentDetailResponse>> GetUserPaymentByIdAsync(Guid paymentId, Guid userId)
+		{
+			if (paymentId == Guid.Empty)
+				return BaseResponse<GetPaymentDetailResponse>.Fail("Invalid payment id.");
+			if (userId == Guid.Empty)
+				return BaseResponse<GetPaymentDetailResponse>.Fail("Invalid user id.");
+
+			var payment = await _unitOfWork.Repository<Payment>().FirstOrDefaultAsync(
+				p => p.Id == paymentId,
+				include: q => q
+					.Include(p => p.Subscription)
+						.ThenInclude(s => s.User)
+					.Include(p => p.Subscription)
+						.ThenInclude(s => s.Plan),
+				asNoTracking: true
+			);
+
+			if (payment == null)
+			{
+				return BaseResponse<GetPaymentDetailResponse>.Fail("Payment record not found.");
+			}
+
+			if (payment.Subscription == null || payment.Subscription.UserId != userId)
+			{
+				return BaseResponse<GetPaymentDetailResponse>.Fail("Payment record not found.");
+			}
+
+			var payload = _mapper.Map<GetPaymentDetailResponse>(payment);
+			return BaseResponse<GetPaymentDetailResponse>.Ok(payload);
 		}
 
 		public async Task<BaseResponse<VnPayReturnResponse>> GetVnPayReturnResponseAsync(IQueryCollection queryParameters)

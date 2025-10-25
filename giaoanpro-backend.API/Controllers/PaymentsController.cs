@@ -1,6 +1,8 @@
 ﻿using giaoanpro_backend.Application.Interfaces.Services;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Primitives;
+using System.Security.Claims;
 using System.Text.Json;
 
 namespace giaoanpro_backend.API.Controllers
@@ -12,10 +14,34 @@ namespace giaoanpro_backend.API.Controllers
 		private readonly IPaymentService _paymentService;
 		private readonly ILogger<PaymentsController> _logger;
 
+		private Guid GetCurrentUserId()
+		{
+			var userIdString = User.FindFirstValue(ClaimTypes.NameIdentifier);
+			return Guid.TryParse(userIdString, out var userId) ? userId : Guid.Empty;
+		}
+
 		public PaymentsController(IPaymentService paymentService, ILogger<PaymentsController> logger)
 		{
 			_paymentService = paymentService;
 			_logger = logger;
+		}
+
+		[HttpGet("my-history")]
+		[Authorize]
+		public async Task<IActionResult> GetMyPaymentHistory()
+		{
+			var userId = GetCurrentUserId();
+			var result = await _paymentService.GetPaymentHistoryByUserIdAsync(userId);
+			return Ok(result);
+		}
+
+		[HttpGet("{id:guid}")]
+		[Authorize]
+		public async Task<IActionResult> GetMyPaymentById([FromRoute] Guid id)
+		{
+			var userId = GetCurrentUserId();
+			var result = await _paymentService.GetUserPaymentByIdAsync(id, userId);
+			return result.Success ? Ok(result) : NotFound(result);
 		}
 
 		[HttpGet("vnpay-return")]

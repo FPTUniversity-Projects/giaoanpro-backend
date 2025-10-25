@@ -12,7 +12,7 @@ namespace giaoanpro_backend.Domain.Entities
 		public decimal AmountPaid { get; set; }
 		public DateTime PaymentDate { get; set; }
 		public PaymentStatus Status { get; set; }
-		public string PaymentMethod { get; set; } = string.Empty; // "VNPAY", "Stripe", "MoMo"
+		public string PaymentMethod { get; set; } = string.Empty;
 		public string GatewayTransactionId { get; set; } = string.Empty;
 		public string Description { get; set; } = string.Empty;
 		public string VnpResponseCode { get; set; } = string.Empty;
