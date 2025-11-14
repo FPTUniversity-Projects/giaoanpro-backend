@@ -156,16 +156,16 @@ namespace giaoanpro_backend.Application.Services
 			return BaseResponse<GetSubscriptionDetailResponse>.Ok(response, "Subscription retrieved successfully.");
 		}
 
-		public async Task<BaseResponse<List<GetSubscriptionResponse>>> GetSubscriptionHistoryByUserIdAsync(Guid userId)
+		public async Task<BaseResponse<List<GetHistorySubscriptionResponse>>> GetSubscriptionHistoryByUserIdAsync(Guid userId)
 		{
 			var subscriptions = await _unitOfWork.Repository<Subscription>()
 				.GetAllAsync(s => s.UserId == userId);
 			if (!subscriptions.Any())
 			{
-				return BaseResponse<List<GetSubscriptionResponse>>.Ok(new List<GetSubscriptionResponse>(), "No subscription history found for the user.");
+				return BaseResponse<List<GetHistorySubscriptionResponse>>.Ok(new List<GetHistorySubscriptionResponse>(), "No subscription history found for the user.");
 			}
-			var response = _mapper.Map<List<GetSubscriptionResponse>>(subscriptions);
-			return BaseResponse<List<GetSubscriptionResponse>>.Ok(response, "Subscription history retrieved successfully.");
+			var response = _mapper.Map<List<GetHistorySubscriptionResponse>>(subscriptions);
+			return BaseResponse<List<GetHistorySubscriptionResponse>>.Ok(response, "Subscription history retrieved successfully.");
 		}
 
 		private async Task<BaseResponse<(Subscription, SubscriptionPlan)>> PrepareSubscriptionForCheckoutAsync(SubscriptionCheckoutRequest request)
@@ -213,7 +213,10 @@ namespace giaoanpro_backend.Application.Services
 					PlanId = request.PlanId,
 					StartDate = now,
 					EndDate = now.AddDays(plan.DurationInDays),
-					Status = SubscriptionStatus.Inactive
+					Status = SubscriptionStatus.Inactive,
+					CurrentLessonPlansCreated = 0,
+					CurrentPromptsUsed = 0,
+					LastPromptResetDate = null
 				};
 
 				await _unitOfWork.Repository<Subscription>().AddAsync(subscription);

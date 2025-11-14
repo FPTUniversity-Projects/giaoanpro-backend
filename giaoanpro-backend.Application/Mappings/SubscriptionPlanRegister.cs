@@ -15,6 +15,8 @@ namespace giaoanpro_backend.Application.Mappings
 				.Map(dest => dest.Description, src => src.Description)
 				.Map(dest => dest.Price, src => src.Price)
 				.Map(dest => dest.DurationInDays, src => src.DurationInDays)
+				.Map(dest => dest.MaxLessonPlans, src => src.MaxLessonPlans)
+				.Map(dest => dest.MaxPromptsPerDay, src => src.MaxPromptsPerDay)
 				.Map(dest => dest.IsActive, src => true);
 
 			config.NewConfig<UpdateSubscriptionPlanRequest, SubscriptionPlan>()
@@ -22,6 +24,8 @@ namespace giaoanpro_backend.Application.Mappings
 				.Map(dest => dest.Description, src => src.Description)
 				.Map(dest => dest.Price, src => src.Price)
 				.Map(dest => dest.DurationInDays, src => src.DurationInDays)
+				.Map(dest => dest.MaxLessonPlans, src => src.MaxLessonPlans)
+				.Map(dest => dest.MaxPromptsPerDay, src => src.MaxPromptsPerDay)
 				.Map(dest => dest.IsActive, src => src.IsActive);
 
 			config.NewConfig<SubscriptionPlan, GetSubscriptionPlanResponse>()
@@ -30,7 +34,9 @@ namespace giaoanpro_backend.Application.Mappings
 				.Map(dest => dest.Description, src => src.Description)
 				.Map(dest => dest.Price, src => src.Price)
 				.Map(dest => dest.DurationInDays, src => src.DurationInDays)
-				.Map(dest => dest.IsActive, src => src.IsActive);
+				.Map(dest => dest.IsActive, src => src.IsActive)
+				.Map(dest => dest.MaxLessonPlans, src => src.MaxLessonPlans)
+				.Map(dest => dest.MaxPromptsPerDay, src => src.MaxPromptsPerDay);
 		}
 	}
 }

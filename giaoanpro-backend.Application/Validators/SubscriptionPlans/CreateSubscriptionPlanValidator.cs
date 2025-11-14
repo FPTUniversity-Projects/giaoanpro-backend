@@ -16,6 +16,10 @@ namespace giaoanpro_backend.Application.Validators.SubscriptionPlans
 				.GreaterThanOrEqualTo(0).WithMessage("Price must be greater than or equal to 0.");
 			RuleFor(x => x.DurationInDays)
 				.GreaterThan(0).WithMessage("Duration in days must be greater than 0.");
+			RuleFor(x => x.MaxLessonPlans)
+				.GreaterThanOrEqualTo(0).WithMessage("Max lesson plans must be greater than or equal to 0.");
+			RuleFor(x => x.MaxPromptsPerDay)
+				.GreaterThanOrEqualTo(0).WithMessage("Max prompts per day must be greater than or equal to 0.");
 		}
 	}
 }
