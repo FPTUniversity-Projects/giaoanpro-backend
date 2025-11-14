@@ -20,6 +20,7 @@ namespace giaoanpro_backend.Infrastructure.Extensions
 
 			// Register infrastructure 3rd-party services used by Application layer
 			services.AddScoped<IVnPayService, VnPayService>();
+			// Register other 3rd-party services here...
 
 			// Convention-based registration for repository implementations in the Persistence assembly.
 			// It will register classes where an interface named "I{ClassName}" exists.
@@ -58,10 +59,7 @@ namespace giaoanpro_backend.Infrastructure.Extensions
 			if (repoAssembly == null) return;
 
 			var implTypes = repoAssembly.GetTypes()
-				.Where(t => t.IsClass
-							&& !t.IsAbstract
-							&& !t.IsGenericType
-							&& t.IsPublic);
+				.Where(t => t.IsClass && !t.IsAbstract && !t.IsGenericType && t.IsPublic);
 
 			foreach (var impl in implTypes)
 			{

@@ -11,6 +11,10 @@ namespace giaoanpro_backend.Domain.Entities
 		public int DurationInDays { get; set; }
 		public bool IsActive { get; set; }
 
+		// Limits
+		public int MaxLessonPlans { get; set; }
+		public int MaxPromptsPerDay { get; set; }
+
 		// Navigation properties
 		public ICollection<Subscription> UserSubscriptions { get; set; } = new List<Subscription>();
 

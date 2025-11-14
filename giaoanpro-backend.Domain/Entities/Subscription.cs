@@ -12,6 +12,11 @@ namespace giaoanpro_backend.Domain.Entities
 		public DateTime EndDate { get; set; }
 		public SubscriptionStatus Status { get; set; }
 
+		// Usage limits tracking
+		public int CurrentLessonPlansCreated { get; set; }
+		public int CurrentPromptsUsed { get; set; }
+		public DateTime? LastPromptResetDate { get; set; }
+
 		// Navigation properties
 		public virtual User User { get; set; } = null!;
 		public virtual SubscriptionPlan Plan { get; set; } = null!;

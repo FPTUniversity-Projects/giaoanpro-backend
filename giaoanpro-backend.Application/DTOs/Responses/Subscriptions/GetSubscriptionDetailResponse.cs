@@ -8,6 +8,9 @@
 		public DateTime StartDate { get; set; }
 		public DateTime EndDate { get; set; }
 		public string Status { get; set; } = null!;
+		public int CurrentLessonPlansCreated { get; set; }
+		public int CurrentPromptsUsed { get; set; }
+		public DateTime? LastPromptResetDate { get; set; }
 
 		// plan details
 		public SubscriptionPlanDetailResponse Plan { get; set; } = null!;
@@ -23,6 +26,8 @@
 		public string Description { get; set; } = null!;
 		public decimal Price { get; set; }
 		public int DurationInDays { get; set; }
+		public int MaxLessonPlans { get; set; }
+		public int MaxPromptsPerDay { get; set; }
 	}
 
 	public class PaymentDetailResponse
