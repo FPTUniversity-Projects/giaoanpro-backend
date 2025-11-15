@@ -13,10 +13,10 @@ namespace giaoanpro_backend.Application.Services
 {
 	public class AuthService : IAuthService
 	{
-		private readonly IGenericRepository<User> _userRepository;
+		private readonly IUserRepository _userRepository;
 		private readonly IAuthRepository _authRepository;
 
-		public AuthService(IGenericRepository<User> userRepository, IAuthRepository authRepository)
+		public AuthService(IUserRepository userRepository, IAuthRepository authRepository)
 		{
 			_userRepository = userRepository;
 			_authRepository = authRepository;
@@ -27,7 +27,7 @@ namespace giaoanpro_backend.Application.Services
 			if (request is null || string.IsNullOrWhiteSpace(request.Email) || string.IsNullOrWhiteSpace(request.Password))
 				return BaseResponse<TokenResponse>.Fail("Invalid login request", ResponseErrorType.BadRequest);
 
-			var user = await _userRepository.GetByConditionAsync(u => u.Email == request.Email);
+			var user = await _userRepository.GetByEmailAsync(request.Email);
 			// For security do not reveal whether a user exists. Treat missing user as invalid credentials (Unauthorized).
 			if (user == null)
 				return BaseResponse<TokenResponse>.Fail("Invalid email or password.", ResponseErrorType.Unauthorized);
@@ -40,14 +40,14 @@ namespace giaoanpro_backend.Application.Services
 			if (!string.Equals(providedHash, user.PasswordHash, StringComparison.Ordinal))
 				return BaseResponse<TokenResponse>.Fail("Invalid email or password.", ResponseErrorType.Unauthorized);
 
-			var tokenResponse = await GenerateTokenResponseAsync(user);
+			var tokenResponse = GenerateTokenResponseAsync(user);
 			return BaseResponse<TokenResponse>.Ok(tokenResponse);
 		}
 
-		private async Task<TokenResponse> GenerateTokenResponseAsync(User user)
+		private TokenResponse GenerateTokenResponseAsync(User user)
 		{
 			var role = user.Role.ToString();
-			var token = await _authRepository.GenerateJwtToken(user, role);
+			var token = _authRepository.GenerateJwtToken(user, role);
 			return new TokenResponse()
 			{
 				AccessToken = token,
@@ -80,7 +80,7 @@ namespace giaoanpro_backend.Application.Services
 			User? user = null;
 			try
 			{
-				user = await _userRepository.GetByConditionAsync(u => u.Email == email);
+				user = await _userRepository.GetByEmailAsync(email);
 				if (user is null)
 				{
 					// Create the user and apply preferredRole if provided (but never Admin).
@@ -100,7 +100,7 @@ namespace giaoanpro_backend.Application.Services
 			if (user.Role == UserRole.Admin)
 				return BaseResponse<TokenResponse>.Fail("Admin accounts must be created by an administrator.", ResponseErrorType.Forbidden);
 
-			var tokenResponse = await GenerateTokenResponseAsync(user);
+			var tokenResponse = GenerateTokenResponseAsync(user);
 
 			var message = "Google login successful";
 			return BaseResponse<TokenResponse>.Ok(tokenResponse, message);
@@ -111,7 +111,7 @@ namespace giaoanpro_backend.Application.Services
 			if (request is null || string.IsNullOrWhiteSpace(request.Email) || string.IsNullOrWhiteSpace(request.Password))
 				return BaseResponse<string>.Fail("Invalid registration request", ResponseErrorType.BadRequest);
 
-			var existingUser = await _userRepository.GetByConditionAsync(u => u.Email == request.Email || u.Username == request.Username);
+			var existingUser = await _userRepository.GetByEmailOrUsernameAsync(request.Email, request.Username);
 			if (existingUser != null)
 				return BaseResponse<string>.Fail("Email or username already exists", ResponseErrorType.Conflict);
 

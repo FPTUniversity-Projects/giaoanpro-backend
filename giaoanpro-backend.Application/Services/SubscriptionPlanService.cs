@@ -11,12 +11,12 @@ namespace giaoanpro_backend.Application.Services
 {
 	public class SubscriptionPlanService : ISubscriptionPlanService
 	{
-		private readonly IGenericRepository<SubscriptionPlan> _repository;
+		private readonly ISubscriptionPlanRepository _repository;
 		private readonly IMapper _mapper;
 		private readonly IValidator<CreateSubscriptionPlanRequest> _createValidator;
 		private readonly IValidator<UpdateSubscriptionPlanRequest> _updateValidator;
 
-		public SubscriptionPlanService(IGenericRepository<SubscriptionPlan> repository, IMapper mapper, IValidator<CreateSubscriptionPlanRequest> createValidator, IValidator<UpdateSubscriptionPlanRequest> updateValidator)
+		public SubscriptionPlanService(ISubscriptionPlanRepository repository, IMapper mapper, IValidator<CreateSubscriptionPlanRequest> createValidator, IValidator<UpdateSubscriptionPlanRequest> updateValidator)
 		{
 			_repository = repository;
 			_mapper = mapper;
@@ -42,7 +42,7 @@ namespace giaoanpro_backend.Application.Services
 
 		public async Task<BaseResponse<string>> DeleteSubscriptionPlanAsync(Guid id)
 		{
-			var existingPlan = await _repository.GetByIdAsync(id);
+			var existingPlan = await _repository.GetPlanByIdAsync(id);
 			if (existingPlan == null)
 			{
 				return BaseResponse<string>.Fail("Subscription plan not found.", ResponseErrorType.NotFound);
@@ -57,7 +57,7 @@ namespace giaoanpro_backend.Application.Services
 
 		public async Task<BaseResponse<List<GetSubscriptionPlanResponse>>> GetAllSubscriptionPlansAsync()
 		{
-			var subscriptionPlans = await _repository.GetAllAsync();
+			var subscriptionPlans = await _repository.GetAllPlansAsync();
 			var response = _mapper.Map<List<GetSubscriptionPlanResponse>>(subscriptionPlans);
 			if (!subscriptionPlans.Any())
 			{
@@ -68,7 +68,7 @@ namespace giaoanpro_backend.Application.Services
 
 		public async Task<BaseResponse<GetSubscriptionPlanResponse>> GetSubscriptionPlanByIdAsync(Guid id)
 		{
-			var existingPlan = await _repository.GetByIdAsync(id);
+			var existingPlan = await _repository.GetPlanByIdAsync(id);
 			if (existingPlan == null)
 			{
 				return BaseResponse<GetSubscriptionPlanResponse>.Fail("Subscription plan not found.", ResponseErrorType.NotFound);
@@ -85,7 +85,7 @@ namespace giaoanpro_backend.Application.Services
 				var errors = validationResult.Errors.Select(e => e.ErrorMessage).ToList();
 				return BaseResponse<string>.Fail("Validation failed.", ResponseErrorType.BadRequest, errors);
 			}
-			var existingPlan = await _repository.GetByIdAsync(id);
+			var existingPlan = await _repository.GetPlanByIdAsync(id);
 			if (existingPlan == null)
 			{
 				return BaseResponse<string>.Fail("Subscription plan not found.", ResponseErrorType.NotFound);

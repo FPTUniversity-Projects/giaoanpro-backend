@@ -1,12 +1,7 @@
-﻿namespace giaoanpro_backend.Application.Interfaces.Repositories
+﻿namespace giaoanpro_backend.Application.Interfaces.Repositories.Bases
 {
 	public interface IUnitOfWork : IDisposable, IAsyncDisposable
 	{
-		/// <summary>
-		/// Returns a generic repository for the given entity type. Instances are cached per UnitOfWork.
-		/// </summary>
-		IGenericRepository<T> Repository<T>() where T : class;
-
 		/// <summary>
 		/// Save changes and return true if one or more rows were affected.
 		/// </summary>
@@ -23,5 +18,10 @@
 		Task BeginTransactionAsync();
 		Task CommitTransactionAsync();
 		Task RollbackTransactionAsync();
+
+		// Repositories
+		ISubscriptionRepository Subscriptions { get; }
+		ISubscriptionPlanRepository SubscriptionPlans { get; }
+		IPaymentRepository Payments { get; }
 	}
 }

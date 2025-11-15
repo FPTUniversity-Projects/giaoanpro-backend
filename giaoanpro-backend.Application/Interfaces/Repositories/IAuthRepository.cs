@@ -6,7 +6,7 @@ namespace giaoanpro_backend.Application.Interfaces.Repositories
 {
 	public interface IAuthRepository
 	{
-		public Task<string> GenerateJwtToken(User user, string role);
+		public string GenerateJwtToken(User user, string role);
 		public Task<User> RegisterViaGoogleAsync(GoogleJsonWebSignature.Payload payload, UserRole? preferredRole = null);
 	}
 }
