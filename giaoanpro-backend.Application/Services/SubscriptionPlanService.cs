@@ -30,14 +30,14 @@ namespace giaoanpro_backend.Application.Services
 			if (!validationResult.IsValid)
 			{
 				var errors = validationResult.Errors.Select(e => e.ErrorMessage).ToList();
-				return BaseResponse<string>.Fail("Validation failed.", errors);
+				return BaseResponse<string>.Fail("Validation failed.", ResponseErrorType.BadRequest, errors);
 			}
 			var subscriptionPlan = _mapper.Map<SubscriptionPlan>(request);
 			await _repository.AddAsync(subscriptionPlan);
 			var result = await _repository.SaveChangesAsync();
 			return result
 				? BaseResponse<string>.Ok(subscriptionPlan.Id.ToString(), "Subscription plan created successfully.")
-				: BaseResponse<string>.Fail("Failed to create subscription plan.");
+				: BaseResponse<string>.Fail("Failed to create subscription plan.", ResponseErrorType.InternalError);
 		}
 
 		public async Task<BaseResponse<string>> DeleteSubscriptionPlanAsync(Guid id)
@@ -45,13 +45,14 @@ namespace giaoanpro_backend.Application.Services
 			var existingPlan = await _repository.GetByIdAsync(id);
 			if (existingPlan == null)
 			{
-				return BaseResponse<string>.Fail("Subscription plan not found.");
+				return BaseResponse<string>.Fail("Subscription plan not found.", ResponseErrorType.NotFound);
 			}
+
 			_repository.Remove(existingPlan);
 			var result = await _repository.SaveChangesAsync();
 			return result
 				? BaseResponse<string>.Ok(null!, "Subscription plan deleted successfully.")
-				: BaseResponse<string>.Fail("Failed to delete subscription plan.");
+				: BaseResponse<string>.Fail("Failed to delete subscription plan.", ResponseErrorType.InternalError);
 		}
 
 		public async Task<BaseResponse<List<GetSubscriptionPlanResponse>>> GetAllSubscriptionPlansAsync()
@@ -70,7 +71,7 @@ namespace giaoanpro_backend.Application.Services
 			var existingPlan = await _repository.GetByIdAsync(id);
 			if (existingPlan == null)
 			{
-				return BaseResponse<GetSubscriptionPlanResponse>.Fail("Subscription plan not found.");
+				return BaseResponse<GetSubscriptionPlanResponse>.Fail("Subscription plan not found.", ResponseErrorType.NotFound);
 			}
 			var response = _mapper.Map<GetSubscriptionPlanResponse>(existingPlan);
 			return BaseResponse<GetSubscriptionPlanResponse>.Ok(response, "Subscription plan retrieved successfully.");
@@ -82,19 +83,19 @@ namespace giaoanpro_backend.Application.Services
 			if (!validationResult.IsValid)
 			{
 				var errors = validationResult.Errors.Select(e => e.ErrorMessage).ToList();
-				return BaseResponse<string>.Fail("Validation failed.", errors);
+				return BaseResponse<string>.Fail("Validation failed.", ResponseErrorType.BadRequest, errors);
 			}
 			var existingPlan = await _repository.GetByIdAsync(id);
 			if (existingPlan == null)
 			{
-				return BaseResponse<string>.Fail("Subscription plan not found.");
+				return BaseResponse<string>.Fail("Subscription plan not found.", ResponseErrorType.NotFound);
 			}
 			_mapper.Map(request, existingPlan);
 			_repository.Update(existingPlan);
 			var result = await _repository.SaveChangesAsync();
 			return result
 				? BaseResponse<string>.Ok(null!, "Subscription plan updated successfully.")
-				: BaseResponse<string>.Fail("Failed to update subscription plan.");
+				: BaseResponse<string>.Fail("Failed to update subscription plan.", ResponseErrorType.InternalError);
 		}
 	}
 }

@@ -1,24 +1,20 @@
-﻿using giaoanpro_backend.Application.Interfaces.Services;
+﻿using giaoanpro_backend.Application.DTOs.Responses.Bases;
+using giaoanpro_backend.Application.DTOs.Responses.Payments;
+using giaoanpro_backend.Application.DTOs.Responses.VnPays;
+using giaoanpro_backend.Application.Interfaces.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Primitives;
-using System.Security.Claims;
 using System.Text.Json;
 
 namespace giaoanpro_backend.API.Controllers
 {
 	[Route("api/[controller]")]
 	[ApiController]
-	public class PaymentsController : ControllerBase
+	public class PaymentsController : BaseApiController
 	{
 		private readonly IPaymentService _paymentService;
 		private readonly ILogger<PaymentsController> _logger;
-
-		private Guid GetCurrentUserId()
-		{
-			var userIdString = User.FindFirstValue(ClaimTypes.NameIdentifier);
-			return Guid.TryParse(userIdString, out var userId) ? userId : Guid.Empty;
-		}
 
 		public PaymentsController(IPaymentService paymentService, ILogger<PaymentsController> logger)
 		{
@@ -28,31 +24,42 @@ namespace giaoanpro_backend.API.Controllers
 
 		[HttpGet("my-history")]
 		[Authorize]
-		public async Task<IActionResult> GetMyPaymentHistory()
+		[ProducesResponseType(typeof(BaseResponse<List<GetPaymentResponse>>), StatusCodes.Status200OK)]
+		[ProducesResponseType(typeof(BaseResponse<List<GetPaymentResponse>>), StatusCodes.Status400BadRequest)]
+		[ProducesResponseType(typeof(BaseResponse<List<GetPaymentResponse>>), StatusCodes.Status500InternalServerError)]
+		public async Task<ActionResult<BaseResponse<List<GetPaymentResponse>>>> GetMyPaymentHistory()
 		{
 			var userId = GetCurrentUserId();
 			var result = await _paymentService.GetPaymentHistoryByUserIdAsync(userId);
-			return Ok(result);
+			return HandleResponse(result);
 		}
 
 		[HttpGet("{id:guid}")]
 		[Authorize]
-		public async Task<IActionResult> GetMyPaymentById([FromRoute] Guid id)
+		[ProducesResponseType(typeof(BaseResponse<GetPaymentDetailResponse>), StatusCodes.Status200OK)]
+		[ProducesResponseType(typeof(BaseResponse<GetPaymentDetailResponse>), StatusCodes.Status404NotFound)]
+		[ProducesResponseType(typeof(BaseResponse<GetPaymentDetailResponse>), StatusCodes.Status400BadRequest)]
+		[ProducesResponseType(typeof(BaseResponse<GetPaymentDetailResponse>), StatusCodes.Status500InternalServerError)]
+		public async Task<ActionResult<BaseResponse<GetPaymentDetailResponse>>> GetMyPaymentById([FromRoute] Guid id)
 		{
 			var userId = GetCurrentUserId();
 			var result = await _paymentService.GetUserPaymentByIdAsync(id, userId);
-			return result.Success ? Ok(result) : NotFound(result);
+			return HandleResponse(result);
 		}
 
 		[HttpGet("vnpay-return")]
-		public async Task<IActionResult> HandleVnPayCallback()
+		[ProducesResponseType(typeof(BaseResponse<VnPayReturnResponse>), StatusCodes.Status200OK)]
+		[ProducesResponseType(typeof(BaseResponse<VnPayReturnResponse>), StatusCodes.Status400BadRequest)]
+		[ProducesResponseType(typeof(BaseResponse<VnPayReturnResponse>), StatusCodes.Status404NotFound)]
+		[ProducesResponseType(typeof(BaseResponse<VnPayReturnResponse>), StatusCodes.Status500InternalServerError)]
+		public async Task<ActionResult<BaseResponse<VnPayReturnResponse>>> HandleVnPayCallback()
 		{
 			var result = await _paymentService.GetVnPayReturnResponseAsync(Request.Query);
-			return Ok(result);
+			return HandleResponse(result);
 		}
 
 		[HttpGet("vnpay-ipn")]
-		public async Task<IActionResult> HandleVnPayIpn()
+		public async Task<ActionResult> HandleVnPayIpn()
 		{
 			IQueryCollection queryParameters;
 
