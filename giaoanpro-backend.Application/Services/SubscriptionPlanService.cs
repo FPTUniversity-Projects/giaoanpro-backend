@@ -55,15 +55,46 @@ namespace giaoanpro_backend.Application.Services
 				: BaseResponse<string>.Fail("Failed to delete subscription plan.", ResponseErrorType.InternalError);
 		}
 
-		public async Task<BaseResponse<List<GetSubscriptionPlanResponse>>> GetAllSubscriptionPlansAsync()
+		public async Task<BaseResponse<PagedResult<GetSubscriptionPlanResponse>>> GetSubscriptionPlansAsync(GetSubscriptionPlansQuery query)
 		{
-			var subscriptionPlans = await _repository.GetAllPlansAsync();
-			var response = _mapper.Map<List<GetSubscriptionPlanResponse>>(subscriptionPlans);
-			if (!subscriptionPlans.Any())
+			// Determine paging values with safe defaults
+			int pageNumber = query.PageNumber > 0 ? query.PageNumber : 1;
+			int pageSize = query.PageSize > 0 ? Math.Min(query.PageSize, 50) : 10;
+
+			// Determine sort direction
+			bool descending = false;
+			if (!string.IsNullOrWhiteSpace(query.SortOrder))
 			{
-				return BaseResponse<List<GetSubscriptionPlanResponse>>.Ok(response, "No subscription plans found.");
+				descending = string.Equals(query.SortOrder, "desc", StringComparison.OrdinalIgnoreCase);
 			}
-			return BaseResponse<List<GetSubscriptionPlanResponse>>.Ok(response, "Subscription plans retrieved successfully.");
+			// some callers may populate IsDescending helper
+			descending = descending || query.IsDescending;
+
+			var (items, totalCount) = await _repository.GetSubscriptionPlansAsync(
+				query.Search,
+				query.MinPrice,
+				query.MaxPrice,
+				query.MinDurationInDays,
+				query.MaxDurationInDays,
+				query.MinLessons,
+				query.MinPromptsPerDay,
+				query.IsActive,
+				query.SortBy,
+				descending,
+				pageNumber,
+				pageSize);
+
+			var mapped = _mapper.Map<List<GetSubscriptionPlanResponse>>(items);
+
+			var paged = new PagedResult<GetSubscriptionPlanResponse>(mapped, pageNumber, pageSize, totalCount);
+
+			// Optionally you could return paging metadata; current contract returns list only.
+			if (mapped.Count == 0)
+			{
+				return BaseResponse<PagedResult<GetSubscriptionPlanResponse>>.Ok(paged, "No subscription plans found.");
+			}
+
+			return BaseResponse<PagedResult<GetSubscriptionPlanResponse>>.Ok(paged, "Subscription plans retrieved successfully.");
 		}
 
 		public async Task<BaseResponse<GetSubscriptionPlanResponse>> GetSubscriptionPlanByIdAsync(Guid id)

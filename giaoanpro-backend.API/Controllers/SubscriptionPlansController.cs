@@ -18,11 +18,11 @@ namespace giaoanpro_backend.API.Controllers
 		}
 
 		[HttpGet]
-		[ProducesResponseType(typeof(BaseResponse<List<GetSubscriptionPlanResponse>>), StatusCodes.Status200OK)]
-		[ProducesResponseType(typeof(BaseResponse<List<GetSubscriptionPlanResponse>>), StatusCodes.Status500InternalServerError)]
-		public async Task<ActionResult<BaseResponse<List<GetSubscriptionPlanResponse>>>> GetAllSubscriptionPlans()
+		[ProducesResponseType(typeof(BaseResponse<PagedResult<GetSubscriptionPlanResponse>>), StatusCodes.Status200OK)]
+		[ProducesResponseType(typeof(BaseResponse<PagedResult<GetSubscriptionPlanResponse>>), StatusCodes.Status500InternalServerError)]
+		public async Task<ActionResult<BaseResponse<PagedResult<GetSubscriptionPlanResponse>>>> GetSubscriptionPlansAsync([FromQuery] GetSubscriptionPlansQuery query)
 		{
-			var result = await _subscriptionPlanService.GetAllSubscriptionPlansAsync();
+			var result = await _subscriptionPlanService.GetSubscriptionPlansAsync(query);
 			return HandleResponse(result);
 		}
 
