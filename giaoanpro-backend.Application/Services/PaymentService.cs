@@ -28,7 +28,7 @@ namespace giaoanpro_backend.Application.Services
 		public async Task<BaseResponse<List<GetPaymentResponse>>> GetPaymentHistoryByUserIdAsync(Guid userId)
 		{
 			if (userId == Guid.Empty)
-				return BaseResponse<List<GetPaymentResponse>>.Fail("Invalid user id.");
+				return BaseResponse<List<GetPaymentResponse>>.Fail("Invalid user id.", ResponseErrorType.BadRequest);
 
 			var payments = await _unitOfWork.Repository<Payment>().GetAllAsync(
 				filter: p => p.Subscription.UserId == userId,
@@ -39,11 +39,11 @@ namespace giaoanpro_backend.Application.Services
 				asNoTracking: true
 			);
 
-			var paymentList = payments?.ToList() ?? [];
+			var paymentList = payments?.ToList() ?? new List<Payment>();
 
 			if (paymentList.Count == 0)
 			{
-				return BaseResponse<List<GetPaymentResponse>>.Ok([], "No history found.");
+				return BaseResponse<List<GetPaymentResponse>>.Ok(new List<GetPaymentResponse>(), "No history found.");
 			}
 
 			var dtoList = _mapper.Map<List<GetPaymentResponse>>(paymentList);
@@ -53,9 +53,9 @@ namespace giaoanpro_backend.Application.Services
 		public async Task<BaseResponse<GetPaymentDetailResponse>> GetUserPaymentByIdAsync(Guid paymentId, Guid userId)
 		{
 			if (paymentId == Guid.Empty)
-				return BaseResponse<GetPaymentDetailResponse>.Fail("Invalid payment id.");
+				return BaseResponse<GetPaymentDetailResponse>.Fail("Invalid payment id.", ResponseErrorType.BadRequest);
 			if (userId == Guid.Empty)
-				return BaseResponse<GetPaymentDetailResponse>.Fail("Invalid user id.");
+				return BaseResponse<GetPaymentDetailResponse>.Fail("Invalid user id.", ResponseErrorType.BadRequest);
 
 			var payment = await _unitOfWork.Repository<Payment>().FirstOrDefaultAsync(
 				p => p.Id == paymentId,
@@ -69,12 +69,12 @@ namespace giaoanpro_backend.Application.Services
 
 			if (payment == null)
 			{
-				return BaseResponse<GetPaymentDetailResponse>.Fail("Payment record not found.");
+				return BaseResponse<GetPaymentDetailResponse>.Fail("Payment record not found.", ResponseErrorType.NotFound);
 			}
 
 			if (payment.Subscription == null || payment.Subscription.UserId != userId)
 			{
-				return BaseResponse<GetPaymentDetailResponse>.Fail("Payment record not found.");
+				return BaseResponse<GetPaymentDetailResponse>.Fail("Payment record not found.", ResponseErrorType.NotFound);
 			}
 
 			var payload = _mapper.Map<GetPaymentDetailResponse>(payment);
@@ -83,21 +83,21 @@ namespace giaoanpro_backend.Application.Services
 
 		public async Task<BaseResponse<VnPayReturnResponse>> GetVnPayReturnResponseAsync(IQueryCollection queryParameters)
 		{
-			var vnPayResponse = await _vnPayService.GetPaymentResponseAsync(queryParameters);
+			var vnPayResponse = _vnPayService.GetPaymentResponseAsync(queryParameters);
 			if (vnPayResponse == null || vnPayResponse.PaymentId == Guid.Empty)
 			{
-				return BaseResponse<VnPayReturnResponse>.Fail("Invalid VNPay response.");
+				return BaseResponse<VnPayReturnResponse>.Fail("Invalid VNPay response.", ResponseErrorType.BadRequest);
 			}
 
 			if (vnPayResponse.IsSuccess == false)
 			{
-				return BaseResponse<VnPayReturnResponse>.Fail("VNPay payment failed: " + vnPayResponse.Message);
+				return BaseResponse<VnPayReturnResponse>.Fail("VNPay payment failed: " + vnPayResponse.Message, ResponseErrorType.BadRequest);
 			}
 
 			var payment = await _unitOfWork.Repository<Payment>().GetByIdAsync(vnPayResponse.PaymentId);
 			if (payment == null)
 			{
-				return BaseResponse<VnPayReturnResponse>.Fail("Payment record not found.");
+				return BaseResponse<VnPayReturnResponse>.Fail("Payment record not found.", ResponseErrorType.NotFound);
 			}
 
 			var subscriptionId = payment.SubscriptionId;
@@ -113,17 +113,17 @@ namespace giaoanpro_backend.Application.Services
 
 		public async Task<BaseResponse<bool>> ProcessVnPayPaymentCallbackAsync(IQueryCollection queryParameters)
 		{
-			var vnPayResponse = await _vnPayService.GetPaymentResponseAsync(queryParameters);
+			var vnPayResponse = _vnPayService.GetPaymentResponseAsync(queryParameters);
 			if (vnPayResponse == null || vnPayResponse.PaymentId == Guid.Empty)
 			{
-				return BaseResponse<bool>.Fail("VNPay payment failed");
+				return BaseResponse<bool>.Fail("VNPay payment failed", ResponseErrorType.BadRequest);
 			}
 
 			// check payment 
 			var payment = await _unitOfWork.Repository<Payment>().GetByIdAsync(vnPayResponse.PaymentId);
 			if (payment == null)
 			{
-				return BaseResponse<bool>.Fail("Payment record not found.");
+				return BaseResponse<bool>.Fail("Payment record not found.", ResponseErrorType.NotFound);
 			}
 			if (payment.Status != PaymentStatus.Pending)
 			{
@@ -131,14 +131,14 @@ namespace giaoanpro_backend.Application.Services
 			}
 			if (payment.AmountPaid != vnPayResponse.Amount)
 			{
-				return BaseResponse<bool>.Fail("Payment amount mismatch.");
+				return BaseResponse<bool>.Fail("Payment amount mismatch.", ResponseErrorType.BadRequest);
 			}
 
 			// check subscription
 			var subscription = await _unitOfWork.Repository<Subscription>().GetByIdAsync(payment.SubscriptionId);
 			if (subscription == null)
 			{
-				return BaseResponse<bool>.Fail("Subscription record not found.");
+				return BaseResponse<bool>.Fail("Subscription record not found.", ResponseErrorType.NotFound);
 			}
 
 			// update payment & subscription status
@@ -164,7 +164,7 @@ namespace giaoanpro_backend.Application.Services
 			catch (Exception ex)
 			{
 				await _unitOfWork.RollbackTransactionAsync();
-				return BaseResponse<bool>.Fail("Error processing payment callback: " + ex.Message);
+				return BaseResponse<bool>.Fail("Error processing payment callback: " + ex.Message, ResponseErrorType.InternalError);
 			}
 		}
 	}

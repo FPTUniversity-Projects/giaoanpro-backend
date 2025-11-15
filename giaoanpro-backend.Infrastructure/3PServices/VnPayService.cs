@@ -55,7 +55,7 @@ namespace giaoanpro_backend.Infrastructure._3PServices
 			return new SubscriptionCheckoutResponse { PaymentUrl = paymentUrl, SubscriptionId = request.SubscriptionId };
 		}
 
-		public async Task<VnPaymentResponse> GetPaymentResponseAsync(IQueryCollection queryParameters)
+		public VnPaymentResponse GetPaymentResponseAsync(IQueryCollection queryParameters)
 		{
 			var vnpay = new VnPayLibrary();
 			foreach (var item in queryParameters)

@@ -30,13 +30,13 @@ namespace giaoanpro_backend.API.Extensions
 
 						context.Response.StatusCode = StatusCodes.Status401Unauthorized;
 						context.Response.ContentType = "application/json";
-						return context.Response.WriteAsJsonAsync(BaseResponse<string>.Fail("Missing or invalid token"));
+						return context.Response.WriteAsJsonAsync(BaseResponse<string>.Fail("Missing or invalid token", ResponseErrorType.Unauthorized));
 					},
 					OnForbidden = context =>
 					{
 						context.Response.StatusCode = StatusCodes.Status403Forbidden;
 						context.Response.ContentType = "application/json";
-						return context.Response.WriteAsJsonAsync(BaseResponse<string>.Fail("You are not authorized to access this resource"));
+						return context.Response.WriteAsJsonAsync(BaseResponse<string>.Fail("You are not authorized to access this resource", ResponseErrorType.Forbidden));
 					}
 				};
 

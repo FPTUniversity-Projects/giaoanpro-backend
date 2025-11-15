@@ -1,23 +1,18 @@
 ﻿using giaoanpro_backend.Application.DTOs.Requests.Subscriptions;
+using giaoanpro_backend.Application.DTOs.Responses.Bases;
+using giaoanpro_backend.Application.DTOs.Responses.Subscriptions;
 using giaoanpro_backend.Application.Interfaces.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using System.Security.Claims;
 
 namespace giaoanpro_backend.API.Controllers
 {
 	[Route("api/[controller]")]
 	[ApiController]
 	[Authorize]
-	public class SubscriptionsController : ControllerBase
+	public class SubscriptionsController : BaseApiController
 	{
 		private readonly ISubscriptionService _subscriptionService;
-
-		private Guid GetCurrentUserId()
-		{
-			var userIdString = User.FindFirstValue(ClaimTypes.NameIdentifier);
-			return Guid.TryParse(userIdString, out var userId) ? userId : Guid.Empty;
-		}
 
 		public SubscriptionsController(ISubscriptionService subscriptionService)
 		{
@@ -25,48 +20,60 @@ namespace giaoanpro_backend.API.Controllers
 		}
 
 		[HttpGet("my-current-access")]
-		public async Task<IActionResult> GetMyCurrentAccessSubscription()
+		[ProducesResponseType(typeof(BaseResponse<GetSubscriptionResponse>), StatusCodes.Status200OK)]
+		[ProducesResponseType(typeof(BaseResponse<GetSubscriptionResponse>), StatusCodes.Status404NotFound)]
+		public async Task<ActionResult<BaseResponse<GetSubscriptionResponse>>> GetMyCurrentAccessSubscription()
 		{
 			var userId = GetCurrentUserId();
 			var result = await _subscriptionService.GetCurrentAccessSubscriptionByUserIdAsync(userId);
 
-			return result.Success ? Ok(result) : NotFound(result);
+			return HandleResponse(result);
 		}
 
 		[HttpGet("my-history")]
-		public async Task<IActionResult> GetMySubscriptionHistory()
+		[ProducesResponseType(typeof(BaseResponse<List<GetHistorySubscriptionResponse>>), StatusCodes.Status200OK)]
+		public async Task<ActionResult<BaseResponse<List<GetHistorySubscriptionResponse>>>> GetMySubscriptionHistory()
 		{
 			var userId = GetCurrentUserId();
 			var result = await _subscriptionService.GetSubscriptionHistoryByUserIdAsync(userId);
-			return Ok(result);
+			return HandleResponse(result);
 		}
 
 		[HttpGet("{id:guid}")]
-		public async Task<IActionResult> GetMySubscriptionById([FromRoute] Guid id)
+		[ProducesResponseType(typeof(BaseResponse<GetSubscriptionDetailResponse>), StatusCodes.Status200OK)]
+		[ProducesResponseType(typeof(BaseResponse<GetSubscriptionDetailResponse>), StatusCodes.Status404NotFound)]
+		public async Task<ActionResult<BaseResponse<GetSubscriptionDetailResponse>>> GetMySubscriptionById([FromRoute] Guid id)
 		{
 			var userId = GetCurrentUserId();
 			var result = await _subscriptionService.GetUserSubscriptionByIdAsync(id, userId);
 
-			return result.Success ? Ok(result) : NotFound(result);
+			return HandleResponse(result);
 		}
 
 		[HttpPost("checkout")]
-		public async Task<IActionResult> CreateSubscriptionCheckoutSession([FromBody] SubscriptionCheckoutRequest request)
+		[ProducesResponseType(typeof(BaseResponse<SubscriptionCheckoutResponse>), StatusCodes.Status200OK)]
+		[ProducesResponseType(typeof(BaseResponse<SubscriptionCheckoutResponse>), StatusCodes.Status404NotFound)]
+		[ProducesResponseType(typeof(BaseResponse<SubscriptionCheckoutResponse>), StatusCodes.Status409Conflict)]
+		[ProducesResponseType(typeof(BaseResponse<SubscriptionCheckoutResponse>), StatusCodes.Status500InternalServerError)]
+		public async Task<ActionResult<BaseResponse<SubscriptionCheckoutResponse>>> CreateSubscriptionCheckoutSession([FromBody] SubscriptionCheckoutRequest request)
 		{
 			request.UserId = GetCurrentUserId();
-
 			var result = await _subscriptionService.CreateSubscriptionCheckoutSessionAsync(request, HttpContext);
 
-			return result.Success ? Ok(result) : BadRequest(result);
+			return HandleResponse(result);
 		}
 
 		[HttpPost("{id:guid}/cancel")]
-		public async Task<IActionResult> CancelSubscription([FromRoute] Guid id)
+		[ProducesResponseType(typeof(BaseResponse<string>), StatusCodes.Status200OK)]
+		[ProducesResponseType(typeof(BaseResponse<string>), StatusCodes.Status404NotFound)]
+		[ProducesResponseType(typeof(BaseResponse<string>), StatusCodes.Status400BadRequest)]
+		[ProducesResponseType(typeof(BaseResponse<string>), StatusCodes.Status500InternalServerError)]
+		public async Task<ActionResult<BaseResponse<string>>> CancelSubscription([FromRoute] Guid id)
 		{
 			var userId = GetCurrentUserId();
 			var result = await _subscriptionService.CancelSubscriptionAsync(id, userId);
 
-			return result.Success ? Ok(result) : NotFound(result);
+			return HandleResponse(result);
 		}
 	}
 }
