@@ -2,14 +2,13 @@
 using giaoanpro_backend.Application.DTOs.Requests.VnPays;
 using giaoanpro_backend.Application.DTOs.Responses.Bases;
 using giaoanpro_backend.Application.DTOs.Responses.Subscriptions;
-using giaoanpro_backend.Application.Interfaces.Repositories;
+using giaoanpro_backend.Application.Interfaces.Repositories.Bases;
 using giaoanpro_backend.Application.Interfaces.Services;
 using giaoanpro_backend.Application.Interfaces.Services._3PServices;
 using giaoanpro_backend.Domain.Entities;
 using giaoanpro_backend.Domain.Enums;
 using MapsterMapper;
 using Microsoft.AspNetCore.Http;
-using Microsoft.EntityFrameworkCore;
 
 namespace giaoanpro_backend.Application.Services
 {
@@ -28,8 +27,7 @@ namespace giaoanpro_backend.Application.Services
 
 		public async Task<BaseResponse<string>> CancelSubscriptionAsync(Guid subscriptionId, Guid userId)
 		{
-			var subscription = await _unitOfWork.Repository<Subscription>().
-				GetByConditionAsync(s => s.Id == subscriptionId && s.UserId == userId);
+			var subscription = await _unitOfWork.Subscriptions.GetByIdAndUserAsync(subscriptionId, userId);
 			if (subscription == null)
 			{
 				return BaseResponse<string>.Fail("Subscription not found.", ResponseErrorType.NotFound);
@@ -39,7 +37,7 @@ namespace giaoanpro_backend.Application.Services
 				return BaseResponse<string>.Fail("Only active subscriptions can be cancelled.", ResponseErrorType.BadRequest);
 			}
 			subscription.Status = SubscriptionStatus.Canceled;
-			_unitOfWork.Repository<Subscription>().Update(subscription);
+			_unitOfWork.Subscriptions.Update(subscription);
 			var result = await _unitOfWork.SaveChangesAsync();
 			return result
 				? BaseResponse<string>.Ok("Subscription cancelled successfully.")
@@ -64,7 +62,7 @@ namespace giaoanpro_backend.Application.Services
 				{
 					subscription.Status = SubscriptionStatus.Active;
 
-					_unitOfWork.Repository<Subscription>().Update(subscription);
+					_unitOfWork.Subscriptions.Update(subscription);
 
 					var saved = await _unitOfWork.SaveChangesAsync();
 					if (!saved)
@@ -94,7 +92,7 @@ namespace giaoanpro_backend.Application.Services
 					Status = PaymentStatus.Pending,
 					PaymentMethod = "VNPAY"
 				};
-				await _unitOfWork.Repository<Payment>().AddAsync(payment);
+				await _unitOfWork.Payments.AddAsync(payment);
 
 				var vnpayRequest = new VnPaymentRequest
 				{
@@ -129,10 +127,7 @@ namespace giaoanpro_backend.Application.Services
 
 		public async Task<BaseResponse<GetSubscriptionResponse>> GetCurrentAccessSubscriptionByUserIdAsync(Guid userId)
 		{
-			var subscription = await _unitOfWork.Repository<Subscription>()
-				.GetByConditionAsync(s => s.UserId == userId &&
-					(s.Status == SubscriptionStatus.Active ||
-						(s.Status == SubscriptionStatus.Canceled && s.EndDate >= DateTime.UtcNow)));
+			var subscription = await _unitOfWork.Subscriptions.GetCurrentAccessByUserAsync(userId);
 			if (subscription == null)
 			{
 				return BaseResponse<GetSubscriptionResponse>.Fail("No access subscription found for the user.", ResponseErrorType.NotFound);
@@ -143,11 +138,7 @@ namespace giaoanpro_backend.Application.Services
 
 		public async Task<BaseResponse<GetSubscriptionDetailResponse>> GetUserSubscriptionByIdAsync(Guid subscriptionId, Guid userId)
 		{
-			var subscription = await _unitOfWork.Repository<Subscription>()
-				.GetByConditionAsync(s => s.Id == subscriptionId && s.UserId == userId,
-					include: s => s
-						.Include(sub => sub.Plan)
-						.Include(sub => sub.Payments));
+			var subscription = await _unitOfWork.Subscriptions.GetByIdAndUserAsync(subscriptionId, userId, includePlan: true, includePayments: true);
 			if (subscription == null)
 			{
 				return BaseResponse<GetSubscriptionDetailResponse>.Fail("Subscription not found for the user.", ResponseErrorType.NotFound);
@@ -158,8 +149,7 @@ namespace giaoanpro_backend.Application.Services
 
 		public async Task<BaseResponse<List<GetHistorySubscriptionResponse>>> GetSubscriptionHistoryByUserIdAsync(Guid userId)
 		{
-			var subscriptions = await _unitOfWork.Repository<Subscription>()
-				.GetAllAsync(s => s.UserId == userId);
+			var subscriptions = await _unitOfWork.Subscriptions.GetHistoryByUserIdAsync(userId);
 			if (!subscriptions.Any())
 			{
 				return BaseResponse<List<GetHistorySubscriptionResponse>>.Ok(new List<GetHistorySubscriptionResponse>(), "No subscription history found for the user.");
@@ -175,16 +165,13 @@ namespace giaoanpro_backend.Application.Services
 
 			if (request.SubscriptionId.HasValue) // Retry Flow
 			{
-				subscription = await _unitOfWork.Repository<Subscription>()
-					.GetByConditionAsync(s => s.Id == request.SubscriptionId.Value &&
-								  s.UserId == request.UserId &&
-								  s.Status == SubscriptionStatus.Inactive);
+				subscription = await _unitOfWork.Subscriptions.GetPendingRetryAsync(request.SubscriptionId.Value, request.UserId);
 				if (subscription == null)
 				{
 					return BaseResponse<(Subscription, SubscriptionPlan)>.Fail("Pending subscription not found for retry.", ResponseErrorType.NotFound);
 				}
 
-				plan = await _unitOfWork.Repository<SubscriptionPlan>().GetByIdAsync(subscription.PlanId);
+				plan = await _unitOfWork.SubscriptionPlans.GetPlanByIdAsync(subscription.PlanId);
 				if (plan == null)
 				{
 					return BaseResponse<(Subscription, SubscriptionPlan)>.Fail("Associated plan not found.", ResponseErrorType.NotFound);
@@ -192,14 +179,13 @@ namespace giaoanpro_backend.Application.Services
 			}
 			else // New Subscription Flow
 			{
-				plan = await _unitOfWork.Repository<SubscriptionPlan>().GetByConditionAsync(p => p.Id == request.PlanId && p.IsActive);
-				if (plan == null)
+				plan = await _unitOfWork.SubscriptionPlans.GetPlanByIdAsync(request.PlanId);
+				if (plan == null || !plan.IsActive)
 				{
 					return BaseResponse<(Subscription, SubscriptionPlan)>.Fail("Subscription plan not found or is not active.", ResponseErrorType.NotFound);
 				}
 
-				var alreadyHasActiveSubscription = await _unitOfWork.Repository<Subscription>()
-					.AnyAsync(s => s.UserId == request.UserId && s.Status == SubscriptionStatus.Active);
+				var alreadyHasActiveSubscription = await _unitOfWork.Subscriptions.UserHasActiveSubscriptionAsync(request.UserId);
 				if (alreadyHasActiveSubscription)
 				{
 					return BaseResponse<(Subscription, SubscriptionPlan)>.Fail("User already has an active subscription.", ResponseErrorType.Conflict);
@@ -219,7 +205,7 @@ namespace giaoanpro_backend.Application.Services
 					LastPromptResetDate = null
 				};
 
-				await _unitOfWork.Repository<Subscription>().AddAsync(subscription);
+				await _unitOfWork.Subscriptions.AddAsync(subscription);
 			}
 
 			return BaseResponse<(Subscription, SubscriptionPlan)>.Ok((subscription, plan));

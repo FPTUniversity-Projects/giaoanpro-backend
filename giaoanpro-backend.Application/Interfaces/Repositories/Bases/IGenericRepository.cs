@@ -1,7 +1,7 @@
 ﻿using Microsoft.EntityFrameworkCore.Query;
 using System.Linq.Expressions;
 
-namespace giaoanpro_backend.Application.Interfaces.Repositories
+namespace giaoanpro_backend.Application.Interfaces.Repositories.Bases
 {
 	public interface IGenericRepository<T> where T : class
 	{

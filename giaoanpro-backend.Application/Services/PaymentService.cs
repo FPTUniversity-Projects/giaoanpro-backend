@@ -2,27 +2,28 @@
 using giaoanpro_backend.Application.DTOs.Responses.Payments;
 using giaoanpro_backend.Application.DTOs.Responses.VnPays;
 using giaoanpro_backend.Application.Interfaces.Repositories;
+using giaoanpro_backend.Application.Interfaces.Repositories.Bases;
 using giaoanpro_backend.Application.Interfaces.Services;
 using giaoanpro_backend.Application.Interfaces.Services._3PServices;
-using giaoanpro_backend.Domain.Entities;
 using giaoanpro_backend.Domain.Enums;
 using MapsterMapper;
 using Microsoft.AspNetCore.Http;
-using Microsoft.EntityFrameworkCore;
 
 namespace giaoanpro_backend.Application.Services
 {
 	public class PaymentService : IPaymentService
 	{
 		private readonly IUnitOfWork _unitOfWork;
+		private readonly IPaymentRepository _paymentRepository;
 		private readonly IVnPayService _vnPayService;
 		private readonly IMapper _mapper;
 
-		public PaymentService(IUnitOfWork unitOfWork, IVnPayService vnPayService, IMapper mapper)
+		public PaymentService(IUnitOfWork unitOfWork, IVnPayService vnPayService, IMapper mapper, IPaymentRepository paymentRepository)
 		{
 			_unitOfWork = unitOfWork;
 			_vnPayService = vnPayService;
 			_mapper = mapper;
+			_paymentRepository = paymentRepository;
 		}
 
 		public async Task<BaseResponse<List<GetPaymentResponse>>> GetPaymentHistoryByUserIdAsync(Guid userId)
@@ -30,16 +31,7 @@ namespace giaoanpro_backend.Application.Services
 			if (userId == Guid.Empty)
 				return BaseResponse<List<GetPaymentResponse>>.Fail("Invalid user id.", ResponseErrorType.BadRequest);
 
-			var payments = await _unitOfWork.Repository<Payment>().GetAllAsync(
-				filter: p => p.Subscription.UserId == userId,
-				include: q => q
-					.Include(p => p.Subscription)
-						.ThenInclude(s => s.Plan),
-				orderBy: q => q.OrderByDescending(p => p.PaymentDate),
-				asNoTracking: true
-			);
-
-			var paymentList = payments?.ToList() ?? new List<Payment>();
+			var paymentList = (await _paymentRepository.GetHistoryByUserIdAsync(userId)).ToList();
 
 			if (paymentList.Count == 0)
 			{
@@ -57,15 +49,7 @@ namespace giaoanpro_backend.Application.Services
 			if (userId == Guid.Empty)
 				return BaseResponse<GetPaymentDetailResponse>.Fail("Invalid user id.", ResponseErrorType.BadRequest);
 
-			var payment = await _unitOfWork.Repository<Payment>().FirstOrDefaultAsync(
-				p => p.Id == paymentId,
-				include: q => q
-					.Include(p => p.Subscription)
-						.ThenInclude(s => s.User)
-					.Include(p => p.Subscription)
-						.ThenInclude(s => s.Plan),
-				asNoTracking: true
-			);
+			var payment = await _paymentRepository.GetByIdWithSubscriptionDetailsAsync(paymentId);
 
 			if (payment == null)
 			{
@@ -94,7 +78,7 @@ namespace giaoanpro_backend.Application.Services
 				return BaseResponse<VnPayReturnResponse>.Fail("VNPay payment failed: " + vnPayResponse.Message, ResponseErrorType.BadRequest);
 			}
 
-			var payment = await _unitOfWork.Repository<Payment>().GetByIdAsync(vnPayResponse.PaymentId);
+			var payment = await _unitOfWork.Payments.GetByIdAsync(vnPayResponse.PaymentId);
 			if (payment == null)
 			{
 				return BaseResponse<VnPayReturnResponse>.Fail("Payment record not found.", ResponseErrorType.NotFound);
@@ -120,7 +104,7 @@ namespace giaoanpro_backend.Application.Services
 			}
 
 			// check payment 
-			var payment = await _unitOfWork.Repository<Payment>().GetByIdAsync(vnPayResponse.PaymentId);
+			var payment = await _unitOfWork.Payments.GetByIdAsync(vnPayResponse.PaymentId);
 			if (payment == null)
 			{
 				return BaseResponse<bool>.Fail("Payment record not found.", ResponseErrorType.NotFound);
@@ -135,7 +119,7 @@ namespace giaoanpro_backend.Application.Services
 			}
 
 			// check subscription
-			var subscription = await _unitOfWork.Repository<Subscription>().GetByIdAsync(payment.SubscriptionId);
+			var subscription = await _unitOfWork.Subscriptions.GetByIdAsync(payment.SubscriptionId);
 			if (subscription == null)
 			{
 				return BaseResponse<bool>.Fail("Subscription record not found.", ResponseErrorType.NotFound);
@@ -155,8 +139,8 @@ namespace giaoanpro_backend.Application.Services
 					subscription.Status = SubscriptionStatus.Active;
 				}
 
-				_unitOfWork.Repository<Payment>().Update(payment);
-				_unitOfWork.Repository<Subscription>().Update(subscription);
+				_unitOfWork.Payments.Update(payment);
+				_unitOfWork.Subscriptions.Update(subscription);
 
 				await _unitOfWork.CommitTransactionAsync();
 				return BaseResponse<bool>.Ok(true, "Payment processed successfully.");

@@ -14,14 +14,14 @@ namespace giaoanpro_backend.Persistence.Repositories
 {
 	public class AuthRepository : IAuthRepository
 	{
-		private readonly IGenericRepository<User> _userRepository;
+		private readonly IUserRepository _userRepository;
 		private readonly IConfiguration _configuration;
 		private readonly ILogger<AuthRepository> _logger;
 		private readonly string _secretKey;
 		private readonly string _issuer;
 		private readonly string _audience;
 
-		public AuthRepository(IGenericRepository<User> userRepository, IConfiguration configuration, ILogger<AuthRepository> logger)
+		public AuthRepository(IUserRepository userRepository, IConfiguration configuration, ILogger<AuthRepository> logger)
 		{
 			_userRepository = userRepository;
 			_configuration = configuration;
@@ -34,7 +34,7 @@ namespace giaoanpro_backend.Persistence.Repositories
 				?? throw new ArgumentNullException("Authentication:Audience not found in configuration");
 		}
 
-		public Task<string> GenerateJwtToken(User user, string role)
+		public string GenerateJwtToken(User user, string role)
 		{
 			if (user == null) throw new ArgumentNullException(nameof(user));
 			if (string.IsNullOrWhiteSpace(role)) role = "User";
@@ -61,7 +61,7 @@ namespace giaoanpro_backend.Persistence.Repositories
 			);
 
 			var tokenString = new JwtSecurityTokenHandler().WriteToken(token);
-			return Task.FromResult(tokenString);
+			return tokenString;
 		}
 
 		// Accept optional preferred role; never assign Admin via Google registration.
@@ -75,7 +75,7 @@ namespace giaoanpro_backend.Persistence.Repositories
 
 			try
 			{
-				var existing = await _userRepository.GetByConditionAsync(u => u.Email == payload.Email);
+				var existing = await _userRepository.GetByEmailAsync(payload.Email);
 				if (existing != null)
 				{
 					_logger.LogInformation("User already exists for email {Email}. Returning existing user.", payload.Email);
@@ -126,7 +126,7 @@ namespace giaoanpro_backend.Persistence.Repositories
 			return Convert.ToBase64String(hash);
 		}
 
-		private string GenerateTemporaryPassword(int length = 12)
+		private static string GenerateTemporaryPassword(int length = 12)
 		{
 			if (length < 8) length = 8;
 
@@ -153,9 +153,7 @@ namespace giaoanpro_backend.Persistence.Repositories
 			for (int i = arr.Length - 1; i > 0; i--)
 			{
 				int j = RandomNumberGenerator.GetInt32(i + 1);
-				var tmp = arr[i];
-				arr[i] = arr[j];
-				arr[j] = tmp;
+				(arr[j], arr[i]) = (arr[i], arr[j]);
 			}
 
 			return new string(arr);

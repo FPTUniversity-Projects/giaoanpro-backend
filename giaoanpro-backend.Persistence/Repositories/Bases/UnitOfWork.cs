@@ -1,8 +1,9 @@
 ﻿using giaoanpro_backend.Application.Interfaces.Repositories;
+using giaoanpro_backend.Application.Interfaces.Repositories.Bases;
 using giaoanpro_backend.Persistence.Context;
 using Microsoft.EntityFrameworkCore.Storage;
 
-namespace giaoanpro_backend.Persistence.Repositories
+namespace giaoanpro_backend.Persistence.Repositories.Bases
 {
 	public class UnitOfWork : IUnitOfWork
 	{
@@ -10,20 +11,51 @@ namespace giaoanpro_backend.Persistence.Repositories
 		private readonly Dictionary<Type, object> _repositories = new();
 		private IDbContextTransaction? _transaction;
 
+		public ISubscriptionRepository Subscriptions
+		{
+			get
+			{
+				var key = typeof(ISubscriptionRepository);
+				if (!_repositories.TryGetValue(key, out var repo))
+				{
+					repo = new SubscriptionRepository(_context);
+					_repositories[key] = repo!;
+				}
+				return (ISubscriptionRepository)repo!;
+			}
+		}
+
+		public ISubscriptionPlanRepository SubscriptionPlans
+		{
+			get
+			{
+				var key = typeof(ISubscriptionPlanRepository);
+				if (!_repositories.TryGetValue(key, out var repo))
+				{
+					repo = new SubscriptionPlanRepository(_context);
+					_repositories[key] = repo!;
+				}
+				return (ISubscriptionPlanRepository)repo!;
+			}
+		}
+
+		public IPaymentRepository Payments
+		{
+			get
+			{
+				var key = typeof(IPaymentRepository);
+				if (!_repositories.TryGetValue(key, out var repo))
+				{
+					repo = new PaymentRepository(_context);
+					_repositories[key] = repo!;
+				}
+				return (IPaymentRepository)repo!;
+			}
+		}
+
 		public UnitOfWork(GiaoanproDBContext context)
 		{
 			_context = context ?? throw new ArgumentNullException(nameof(context));
-		}
-
-		public IGenericRepository<T> Repository<T>() where T : class
-		{
-			var type = typeof(T);
-			if (_repositories.TryGetValue(type, out var repo))
-				return (IGenericRepository<T>)repo!;
-
-			var repositoryInstance = new GenericRepository<T>(_context);
-			_repositories[type] = repositoryInstance!;
-			return repositoryInstance;
 		}
 
 		public async Task<bool> SaveChangesAsync()
