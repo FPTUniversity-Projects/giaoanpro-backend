@@ -31,11 +31,19 @@ namespace giaoanpro_backend.API.Controllers
 		}
 
 		[HttpGet("my-history")]
-		[ProducesResponseType(typeof(BaseResponse<List<GetHistorySubscriptionResponse>>), StatusCodes.Status200OK)]
-		public async Task<ActionResult<BaseResponse<List<GetHistorySubscriptionResponse>>>> GetMySubscriptionHistory()
+		[ProducesResponseType(typeof(BaseResponse<PagedResult<GetHistorySubscriptionResponse>>), StatusCodes.Status200OK)]
+		public async Task<ActionResult<BaseResponse<PagedResult<GetHistorySubscriptionResponse>>>> GetMySubscriptionHistory([FromQuery] GetMySubscriptionHistoryQuery query)
 		{
 			var userId = GetCurrentUserId();
-			var result = await _subscriptionService.GetSubscriptionHistoryByUserIdAsync(userId);
+			var result = await _subscriptionService.GetSubscriptionHistoryByUserIdAsync(userId, query);
+			return HandleResponse(result);
+		}
+
+		[HttpGet]
+		[ProducesResponseType(typeof(BaseResponse<PagedResult<GetHistorySubscriptionResponse>>), StatusCodes.Status200OK)]
+		public async Task<ActionResult<BaseResponse<PagedResult<GetHistorySubscriptionResponse>>>> GetSubscriptions([FromQuery] GetSubscriptionsQuery query)
+		{
+			var result = await _subscriptionService.GetSubscriptionsAsync(query);
 			return HandleResponse(result);
 		}
 

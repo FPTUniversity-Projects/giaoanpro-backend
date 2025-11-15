@@ -1,10 +1,12 @@
 ﻿using giaoanpro_backend.Application.Interfaces.Repositories;
 using giaoanpro_backend.Domain.Entities;
+using giaoanpro_backend.Domain.Enums;
 using giaoanpro_backend.Persistence.Context;
+using giaoanpro_backend.Persistence.Extensions;
 using giaoanpro_backend.Persistence.Repositories.Bases;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Query;
-using giaoanpro_backend.Domain.Enums;
+using System.Linq.Expressions;
 
 namespace giaoanpro_backend.Persistence.Repositories
 {
@@ -52,6 +54,84 @@ namespace giaoanpro_backend.Persistence.Repositories
 		public async Task<bool> UserHasActiveSubscriptionAsync(Guid userId)
 		{
 			return await AnyAsync(s => s.UserId == userId && s.Status == SubscriptionStatus.Active);
+		}
+
+		public async Task<(IEnumerable<Subscription> Items, int TotalCount)> GetSubscriptionsAsync(
+			string? search,
+			Guid? userId,
+			Guid? planId,
+			SubscriptionStatus? status,
+			DateTime? expiresBefore,
+			DateTime? expiresAfter,
+			int? minPromptsUsed,
+			int? minLessonsCreated,
+			string? sortBy,
+			bool isDescending,
+			int pageNumber,
+			int pageSize)
+		{
+			// Build filter expression
+			Expression<Func<Subscription, bool>>? filter = null;
+
+			if (userId.HasValue)
+			{
+				Expression<Func<Subscription, bool>> userFilter = s => s.UserId == userId.Value;
+				filter = filter is null ? userFilter : filter.AndAlso(userFilter);
+			}
+
+			if (planId.HasValue)
+			{
+				Expression<Func<Subscription, bool>> planFilter = s => s.PlanId == planId.Value;
+				filter = filter is null ? planFilter : filter.AndAlso(planFilter);
+			}
+
+			if (status.HasValue)
+			{
+				Expression<Func<Subscription, bool>> statusFilter = s => s.Status == status.Value;
+				filter = filter is null ? statusFilter : filter.AndAlso(statusFilter);
+			}
+
+			if (expiresBefore.HasValue)
+			{
+				Expression<Func<Subscription, bool>> expBeforeFilter = s => s.EndDate <= expiresBefore.Value;
+				filter = filter is null ? expBeforeFilter : filter.AndAlso(expBeforeFilter);
+			}
+
+			if (expiresAfter.HasValue)
+			{
+				Expression<Func<Subscription, bool>> expAfterFilter = s => s.EndDate >= expiresAfter.Value;
+				filter = filter is null ? expAfterFilter : filter.AndAlso(expAfterFilter);
+			}
+
+			if (minPromptsUsed.HasValue)
+			{
+				Expression<Func<Subscription, bool>> minPromptsFilter = s => s.CurrentPromptsUsed >= minPromptsUsed.Value;
+				filter = filter is null ? minPromptsFilter : filter.AndAlso(minPromptsFilter);
+			}
+
+			if (minLessonsCreated.HasValue)
+			{
+				Expression<Func<Subscription, bool>> minLessonsFilter = s => s.CurrentLessonPlansCreated >= minLessonsCreated.Value;
+				filter = filter is null ? minLessonsFilter : filter.AndAlso(minLessonsFilter);
+			}
+
+			if (!string.IsNullOrWhiteSpace(search))
+			{
+				var term = search.Trim();
+				Expression<Func<Subscription, bool>> searchFilter = s => (s.User != null && (s.User.Username.Contains(term) || s.User.Email.Contains(term))) || (s.Plan != null && s.Plan.Name.Contains(term));
+				filter = filter is null ? searchFilter : filter.AndAlso(searchFilter);
+			}
+
+			var result = await GetPagedAsync(
+				filter: filter,
+				include: q => q.Include(s => s.User).Include(s => s.Plan),
+				orderBy: q => q.ApplySorting(sortBy, isDescending),
+				pageNumber: pageNumber,
+				pageSize: pageSize,
+				asNoTracking: true
+			);
+
+			return result;
 		}
 	}
 }
