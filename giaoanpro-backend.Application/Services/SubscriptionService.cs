@@ -147,15 +147,47 @@ namespace giaoanpro_backend.Application.Services
 			return BaseResponse<GetSubscriptionDetailResponse>.Ok(response, "Subscription retrieved successfully.");
 		}
 
-		public async Task<BaseResponse<List<GetHistorySubscriptionResponse>>> GetSubscriptionHistoryByUserIdAsync(Guid userId)
+		public async Task<BaseResponse<PagedResult<GetHistorySubscriptionResponse>>> GetSubscriptionHistoryByUserIdAsync(Guid userId, GetMySubscriptionHistoryQuery query)
 		{
-			var subscriptions = await _unitOfWork.Subscriptions.GetHistoryByUserIdAsync(userId);
-			if (!subscriptions.Any())
+			if (userId == Guid.Empty)
 			{
-				return BaseResponse<List<GetHistorySubscriptionResponse>>.Ok(new List<GetHistorySubscriptionResponse>(), "No subscription history found for the user.");
+				return BaseResponse<PagedResult<GetHistorySubscriptionResponse>>.Fail("Invalid user id.", ResponseErrorType.BadRequest);
 			}
-			var response = _mapper.Map<List<GetHistorySubscriptionResponse>>(subscriptions);
-			return BaseResponse<List<GetHistorySubscriptionResponse>>.Ok(response, "Subscription history retrieved successfully.");
+
+			int pageNumber = query.PageNumber > 0 ? query.PageNumber : 1;
+			int pageSize = query.PageSize > 0 ? Math.Min(query.PageSize, 50) : 10;
+
+			bool descending = false;
+			if (!string.IsNullOrWhiteSpace(query.SortOrder))
+			{
+				descending = string.Equals(query.SortOrder, "desc", StringComparison.OrdinalIgnoreCase);
+			}
+			descending = descending || query.IsDescending;
+
+			var (items, totalCount) = await _unitOfWork.Subscriptions.GetSubscriptionsAsync(
+				search: null,
+				userId: userId,
+				planId: query.PlanId,
+				status: query.Status,
+				expiresBefore: null,
+				expiresAfter: null,
+				minPromptsUsed: null,
+				minLessonsCreated: null,
+				sortBy: query.SortBy,
+				isDescending: descending,
+				pageNumber: pageNumber,
+				pageSize: pageSize
+			);
+
+			var mapped = _mapper.Map<List<GetHistorySubscriptionResponse>>(items);
+			var paged = new PagedResult<GetHistorySubscriptionResponse>(mapped, pageNumber, pageSize, totalCount);
+
+			if (mapped.Count == 0)
+			{
+				return BaseResponse<PagedResult<GetHistorySubscriptionResponse>>.Ok(paged, "No subscription history found for the user.");
+			}
+
+			return BaseResponse<PagedResult<GetHistorySubscriptionResponse>>.Ok(paged, "Subscription history retrieved successfully.");
 		}
 
 		private async Task<BaseResponse<(Subscription, SubscriptionPlan)>> PrepareSubscriptionForCheckoutAsync(Guid userId, SubscriptionCheckoutRequest request)
@@ -209,6 +241,44 @@ namespace giaoanpro_backend.Application.Services
 			}
 
 			return BaseResponse<(Subscription, SubscriptionPlan)>.Ok((subscription, plan));
+		}
+
+		public async Task<BaseResponse<PagedResult<GetHistorySubscriptionResponse>>> GetSubscriptionsAsync(GetSubscriptionsQuery query)
+		{
+			int pageNumber = query.PageNumber > 0 ? query.PageNumber : 1;
+			int pageSize = query.PageSize > 0 ? Math.Min(query.PageSize, 50) : 10;
+
+			bool descending = false;
+			if (!string.IsNullOrWhiteSpace(query.SortOrder))
+			{
+				descending = string.Equals(query.SortOrder, "desc", StringComparison.OrdinalIgnoreCase);
+			}
+			descending = descending || query.IsDescending;
+
+			var (items, totalCount) = await _unitOfWork.Subscriptions.GetSubscriptionsAsync(
+				search: query.Search,
+				userId: query.UserId,
+				planId: query.PlanId,
+				status: query.Status,
+				expiresBefore: query.ExpiresBefore,
+				expiresAfter: query.ExpiresAfter,
+				minPromptsUsed: query.MinPromptsUsed,
+				minLessonsCreated: query.MinLessonsCreated,
+				sortBy: query.SortBy,
+				isDescending: descending,
+				pageNumber: pageNumber,
+				pageSize: pageSize
+			);
+
+			var mapped = _mapper.Map<List<GetHistorySubscriptionResponse>>(items);
+			var paged = new PagedResult<GetHistorySubscriptionResponse>(mapped, pageNumber, pageSize, totalCount);
+
+			if (mapped.Count == 0)
+			{
+				return BaseResponse<PagedResult<GetHistorySubscriptionResponse>>.Ok(paged, "No subscriptions found.");
+			}
+
+			return BaseResponse<PagedResult<GetHistorySubscriptionResponse>>.Ok(paged, "Subscriptions retrieved successfully.");
 		}
 	}
 }
