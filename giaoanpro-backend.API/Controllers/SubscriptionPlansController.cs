@@ -20,7 +20,7 @@ namespace giaoanpro_backend.API.Controllers
 		[HttpGet]
 		[ProducesResponseType(typeof(BaseResponse<PagedResult<GetSubscriptionPlanResponse>>), StatusCodes.Status200OK)]
 		[ProducesResponseType(typeof(BaseResponse<PagedResult<GetSubscriptionPlanResponse>>), StatusCodes.Status500InternalServerError)]
-		public async Task<ActionResult<BaseResponse<PagedResult<GetSubscriptionPlanResponse>>>> GetSubscriptionPlansAsync([FromQuery] GetSubscriptionPlansQuery query)
+		public async Task<ActionResult<BaseResponse<PagedResult<GetSubscriptionPlanResponse>>>> GetSubscriptionPlans([FromQuery] GetSubscriptionPlansQuery query)
 		{
 			var result = await _subscriptionPlanService.GetSubscriptionPlansAsync(query);
 			return HandleResponse(result);
