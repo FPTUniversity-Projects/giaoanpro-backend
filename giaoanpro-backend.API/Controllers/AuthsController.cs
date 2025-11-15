@@ -76,13 +76,5 @@ namespace giaoanpro_backend.API.Controllers
 
 			return HandleResponse(result);
 		}
-
-		[HttpGet("Test")]
-		[Authorize]
-		[ProducesResponseType(typeof(string), StatusCodes.Status200OK)]
-		public ActionResult<string> Test()
-		{
-			return Ok("API is working!");
-		}
 	}
 }

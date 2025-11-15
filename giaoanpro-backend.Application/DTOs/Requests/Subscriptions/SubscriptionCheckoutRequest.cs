@@ -4,6 +4,5 @@
 	{
 		public Guid PlanId { get; set; }
 		public Guid? SubscriptionId { get; set; }
-		public Guid UserId { get; set; }
 	}
 }

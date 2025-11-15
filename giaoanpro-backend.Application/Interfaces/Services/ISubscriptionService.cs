@@ -10,7 +10,7 @@ namespace giaoanpro_backend.Application.Interfaces.Services
 		public Task<BaseResponse<List<GetHistorySubscriptionResponse>>> GetSubscriptionHistoryByUserIdAsync(Guid userId);
 		public Task<BaseResponse<GetSubscriptionResponse>> GetCurrentAccessSubscriptionByUserIdAsync(Guid userId);
 		public Task<BaseResponse<GetSubscriptionDetailResponse>> GetUserSubscriptionByIdAsync(Guid subscriptionId, Guid userId);
-		public Task<BaseResponse<SubscriptionCheckoutResponse>> CreateSubscriptionCheckoutSessionAsync(SubscriptionCheckoutRequest request, HttpContext httpContext);
+		public Task<BaseResponse<SubscriptionCheckoutResponse>> CreateSubscriptionCheckoutSessionAsync(Guid userId, SubscriptionCheckoutRequest request, HttpContext httpContext);
 		public Task<BaseResponse<string>> CancelSubscriptionAsync(Guid subscriptionId, Guid userId);
 	}
 }
