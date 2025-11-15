@@ -57,8 +57,8 @@ namespace giaoanpro_backend.API.Controllers
 		[ProducesResponseType(typeof(BaseResponse<SubscriptionCheckoutResponse>), StatusCodes.Status500InternalServerError)]
 		public async Task<ActionResult<BaseResponse<SubscriptionCheckoutResponse>>> CreateSubscriptionCheckoutSession([FromBody] SubscriptionCheckoutRequest request)
 		{
-			request.UserId = GetCurrentUserId();
-			var result = await _subscriptionService.CreateSubscriptionCheckoutSessionAsync(request, HttpContext);
+			var userId = GetCurrentUserId();
+			var result = await _subscriptionService.CreateSubscriptionCheckoutSessionAsync(userId, request, HttpContext);
 
 			return HandleResponse(result);
 		}

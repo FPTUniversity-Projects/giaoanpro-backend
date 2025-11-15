@@ -44,9 +44,9 @@ namespace giaoanpro_backend.Application.Services
 				: BaseResponse<string>.Fail("Failed to cancel subscription.", ResponseErrorType.InternalError);
 		}
 
-		public async Task<BaseResponse<SubscriptionCheckoutResponse>> CreateSubscriptionCheckoutSessionAsync(SubscriptionCheckoutRequest request, HttpContext httpContext)
+		public async Task<BaseResponse<SubscriptionCheckoutResponse>> CreateSubscriptionCheckoutSessionAsync(Guid userId, SubscriptionCheckoutRequest request, HttpContext httpContext)
 		{
-			var preparationResult = await PrepareSubscriptionForCheckoutAsync(request);
+			var preparationResult = await PrepareSubscriptionForCheckoutAsync(userId, request);
 			if (!preparationResult.Success)
 			{
 				return BaseResponse<SubscriptionCheckoutResponse>.Fail(preparationResult.Message, preparationResult.ErrorType);
@@ -158,14 +158,14 @@ namespace giaoanpro_backend.Application.Services
 			return BaseResponse<List<GetHistorySubscriptionResponse>>.Ok(response, "Subscription history retrieved successfully.");
 		}
 
-		private async Task<BaseResponse<(Subscription, SubscriptionPlan)>> PrepareSubscriptionForCheckoutAsync(SubscriptionCheckoutRequest request)
+		private async Task<BaseResponse<(Subscription, SubscriptionPlan)>> PrepareSubscriptionForCheckoutAsync(Guid userId, SubscriptionCheckoutRequest request)
 		{
 			Subscription? subscription;
 			SubscriptionPlan? plan;
 
 			if (request.SubscriptionId.HasValue) // Retry Flow
 			{
-				subscription = await _unitOfWork.Subscriptions.GetPendingRetryAsync(request.SubscriptionId.Value, request.UserId);
+				subscription = await _unitOfWork.Subscriptions.GetPendingRetryAsync(request.SubscriptionId.Value, userId);
 				if (subscription == null)
 				{
 					return BaseResponse<(Subscription, SubscriptionPlan)>.Fail("Pending subscription not found for retry.", ResponseErrorType.NotFound);
@@ -185,7 +185,7 @@ namespace giaoanpro_backend.Application.Services
 					return BaseResponse<(Subscription, SubscriptionPlan)>.Fail("Subscription plan not found or is not active.", ResponseErrorType.NotFound);
 				}
 
-				var alreadyHasActiveSubscription = await _unitOfWork.Subscriptions.UserHasActiveSubscriptionAsync(request.UserId);
+				var alreadyHasActiveSubscription = await _unitOfWork.Subscriptions.UserHasActiveSubscriptionAsync(userId);
 				if (alreadyHasActiveSubscription)
 				{
 					return BaseResponse<(Subscription, SubscriptionPlan)>.Fail("User already has an active subscription.", ResponseErrorType.Conflict);
@@ -195,7 +195,7 @@ namespace giaoanpro_backend.Application.Services
 				subscription = new Subscription
 				{
 					Id = Guid.NewGuid(),
-					UserId = request.UserId,
+					UserId = userId,
 					PlanId = request.PlanId,
 					StartDate = now,
 					EndDate = now.AddDays(plan.DurationInDays),
