@@ -7,5 +7,6 @@ namespace giaoanpro_backend.Application.Interfaces.Repositories
 	{
 		Task<User?> GetByEmailAsync(string email);
 		Task<User?> GetByEmailOrUsernameAsync(string email, string username);
+		Task<IEnumerable<User>> GetUsersAsync(bool includeInactive = false, bool includeAdmins = false);
 	}
 }

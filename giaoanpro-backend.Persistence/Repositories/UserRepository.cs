@@ -1,7 +1,10 @@
 ﻿using giaoanpro_backend.Application.Interfaces.Repositories;
 using giaoanpro_backend.Domain.Entities;
+using giaoanpro_backend.Domain.Enums;
 using giaoanpro_backend.Persistence.Context;
+using giaoanpro_backend.Persistence.Extensions;
 using giaoanpro_backend.Persistence.Repositories.Bases;
+using System.Linq.Expressions;
 
 namespace giaoanpro_backend.Persistence.Repositories
 {
@@ -21,6 +24,28 @@ namespace giaoanpro_backend.Persistence.Repositories
 		{
 			if (string.IsNullOrWhiteSpace(email) && string.IsNullOrWhiteSpace(username)) return null;
 			return await GetByConditionAsync(u => u.Email == email || u.Username == username);
+		}
+
+		public async Task<IEnumerable<User>> GetUsersAsync(bool includeInactive = false, bool includeAdmins = false)
+		{
+			Expression<Func<User, bool>>? filter = null;
+
+			if (!includeInactive)
+			{
+				Expression<Func<User, bool>> activeFilter = u => u.IsActive;
+				filter = activeFilter;
+			}
+
+			if (!includeAdmins)
+			{
+				Expression<Func<User, bool>> notAdminFilter = u => u.Role != UserRole.Admin;
+				if (filter is null)
+					filter = notAdminFilter;
+				else
+					filter = filter.AndAlso(notAdminFilter);
+			}
+
+			return await GetAllAsync(filter: filter, asNoTracking: true);
 		}
 	}
 }
