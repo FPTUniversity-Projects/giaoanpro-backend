@@ -59,5 +59,34 @@ namespace giaoanpro_backend.API.Controllers
 				_ => BadRequest(result)
 			};
 		}
+
+		/// <summary>
+		/// Reusable helper to validate request bodies are not null.
+		/// Returns null when the request is valid; otherwise returns an ActionResult produced by HandleResponse.
+		/// Usage: var validation = ValidateRequestBody(request); if (validation != null) return validation;
+		/// </summary>
+		protected ActionResult? ValidateRequestBody(object? request)
+		{
+			if (request == null)
+			{
+				var resp = BaseResponse<object>.Fail("Request body cannot be null.", ResponseErrorType.BadRequest);
+				return HandleResponse(resp);
+			}
+			return null;
+		}
+
+		/// <summary>
+		/// Reusable helper to validate request bodies are not null.
+		/// Returns null when the request is valid; otherwise returns an ActionResult produced by HandleResponse.
+		/// </summary>
+		protected ActionResult? ValidateRequestBody<T>(object? request)
+		{
+			if (request == null)
+			{
+				var resp = BaseResponse<T>.Fail("Request body cannot be null.", ResponseErrorType.BadRequest);
+				return HandleResponse(resp);
+			}
+			return null;
+		}
 	}
 }

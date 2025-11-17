@@ -2,6 +2,7 @@ using giaoanpro_backend.API.Extensions;
 using giaoanpro_backend.Application.Extensions;
 using giaoanpro_backend.Infrastructure.Extensions;
 using giaoanpro_backend.Persistence.Context;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.OpenApi.Models;
 using System.Text.Json.Serialization;
@@ -51,6 +52,12 @@ builder.Services.AddJWTServices(builder.Configuration);
 
 // Force all routes to be lowercase
 builder.Services.AddRouting(options => options.LowercaseUrls = true);
+
+// To suppress the automatic model state validation
+builder.Services.Configure<ApiBehaviorOptions>(options =>
+{
+	options.SuppressModelStateInvalidFilter = true;
+});
 
 // JSON options
 builder.Services.AddControllers().AddJsonOptions(options =>
