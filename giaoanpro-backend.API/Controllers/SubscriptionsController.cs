@@ -59,6 +59,11 @@ namespace giaoanpro_backend.API.Controllers
 		}
 
 		[HttpPost]
+		[ProducesResponseType(typeof(BaseResponse<string>), StatusCodes.Status200OK)]
+		[ProducesResponseType(typeof(BaseResponse<string>), StatusCodes.Status400BadRequest)]
+		[ProducesResponseType(typeof(BaseResponse<string>), StatusCodes.Status404NotFound)]
+		[ProducesResponseType(typeof(BaseResponse<string>), StatusCodes.Status409Conflict)]
+		[ProducesResponseType(typeof(BaseResponse<string>), StatusCodes.Status500InternalServerError)]
 		public async Task<ActionResult<BaseResponse<string>>> CreateSubscription([FromBody] CreateSubscriptionRequest request)
 		{
 			var result = await _subscriptionService.CreateSubscriptionAsync(request);

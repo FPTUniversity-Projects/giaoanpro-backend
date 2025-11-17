@@ -1,4 +1,5 @@
-﻿using giaoanpro_backend.Application.DTOs.Requests.Subscriptions;
+﻿using FluentValidation;
+using giaoanpro_backend.Application.DTOs.Requests.Subscriptions;
 using giaoanpro_backend.Application.DTOs.Requests.VnPays;
 using giaoanpro_backend.Application.DTOs.Responses.Bases;
 using giaoanpro_backend.Application.DTOs.Responses.Subscriptions;
@@ -16,13 +17,15 @@ namespace giaoanpro_backend.Application.Services
 	{
 		private readonly IUnitOfWork _unitOfWork;
 		private readonly IVnPayService _vnPayService;
+		private readonly IValidator<CreateSubscriptionRequest> _createSubscriptionValidator;
 		private readonly IMapper _mapper;
 
-		public SubscriptionService(IUnitOfWork unitOfWork, IVnPayService vnPayService, IMapper mapper)
+		public SubscriptionService(IUnitOfWork unitOfWork, IVnPayService vnPayService, IMapper mapper, IValidator<CreateSubscriptionRequest> createSubscriptionValidator)
 		{
 			_unitOfWork = unitOfWork;
 			_vnPayService = vnPayService;
 			_mapper = mapper;
+			_createSubscriptionValidator = createSubscriptionValidator;
 		}
 
 		public async Task<BaseResponse<string>> CancelSubscriptionAsync(Guid subscriptionId, Guid userId)
@@ -283,6 +286,13 @@ namespace giaoanpro_backend.Application.Services
 
 		public async Task<BaseResponse<string>> CreateSubscriptionAsync(CreateSubscriptionRequest request)
 		{
+			var validationResult = await _createSubscriptionValidator.ValidateAsync(request);
+			if (!validationResult.IsValid)
+			{
+				var errors = validationResult.Errors.Select(e => e.ErrorMessage).ToList();
+				return BaseResponse<string>.Fail("Validation failed", ResponseErrorType.BadRequest, errors);
+			}
+
 			var plan = await _unitOfWork.SubscriptionPlans.GetPlanByIdAsync(request.PlanId);
 			if (plan == null || !plan.IsActive)
 			{
