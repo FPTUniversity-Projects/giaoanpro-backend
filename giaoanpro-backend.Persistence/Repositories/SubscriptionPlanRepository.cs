@@ -101,5 +101,10 @@ namespace giaoanpro_backend.Persistence.Repositories
 
 			return result;
 		}
+
+		public async Task<bool> HasSubscriptionsAsync(Guid planId)
+		{
+			return await AnyAsync(p => p.Id == planId && p.UserSubscriptions.Any());
+		}
 	}
 }
