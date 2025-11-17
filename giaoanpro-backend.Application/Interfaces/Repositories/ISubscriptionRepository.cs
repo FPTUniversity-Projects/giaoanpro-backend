@@ -6,7 +6,7 @@ namespace giaoanpro_backend.Application.Interfaces.Repositories
 {
 	public interface ISubscriptionRepository : IGenericRepository<Subscription>
 	{
-		Task<Subscription?> GetByIdAndUserAsync(Guid subscriptionId, Guid userId, bool includePlan = false, bool includePayments = false);
+		Task<Subscription?> GetByIdAndUserAsync(Guid subscriptionId, Guid? userId, bool includePlan = false, bool includePayments = false, bool includeUser = false);
 		Task<Subscription?> GetPendingRetryAsync(Guid subscriptionId, Guid userId);
 		Task<Subscription?> GetCurrentAccessByUserAsync(Guid userId);
 		Task<IEnumerable<Subscription>> GetHistoryByUserIdAsync(Guid userId);

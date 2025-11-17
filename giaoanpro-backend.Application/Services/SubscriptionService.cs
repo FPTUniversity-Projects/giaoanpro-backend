@@ -130,26 +130,26 @@ namespace giaoanpro_backend.Application.Services
 			}
 		}
 
-		public async Task<BaseResponse<GetSubscriptionResponse>> GetCurrentAccessSubscriptionByUserIdAsync(Guid userId)
+		public async Task<BaseResponse<GetMyCurrentAccessResponse>> GetCurrentAccessSubscriptionByUserIdAsync(Guid userId)
 		{
 			var subscription = await _unitOfWork.Subscriptions.GetCurrentAccessByUserAsync(userId);
 			if (subscription == null)
 			{
-				return BaseResponse<GetSubscriptionResponse>.Fail("No access subscription found for the user.", ResponseErrorType.NotFound);
+				return BaseResponse<GetMyCurrentAccessResponse>.Fail("No access subscription found for the user.", ResponseErrorType.NotFound);
 			}
-			var response = _mapper.Map<GetSubscriptionResponse>(subscription);
-			return BaseResponse<GetSubscriptionResponse>.Ok(response, "Current access subscription retrieved successfully.");
+			var response = _mapper.Map<GetMyCurrentAccessResponse>(subscription);
+			return BaseResponse<GetMyCurrentAccessResponse>.Ok(response, "Current access subscription retrieved successfully.");
 		}
 
-		public async Task<BaseResponse<GetSubscriptionDetailResponse>> GetUserSubscriptionByIdAsync(Guid subscriptionId, Guid userId)
+		public async Task<BaseResponse<GetMySubscriptionDetailResponse>> GetUserSubscriptionByIdAsync(Guid subscriptionId, Guid userId)
 		{
-			var subscription = await _unitOfWork.Subscriptions.GetByIdAndUserAsync(subscriptionId, userId, includePlan: true, includePayments: true);
+			var subscription = await _unitOfWork.Subscriptions.GetByIdAndUserAsync(subscriptionId, userId, includePlan: true, includePayments: true, includeUser: false);
 			if (subscription == null)
 			{
-				return BaseResponse<GetSubscriptionDetailResponse>.Fail("Subscription not found for the user.", ResponseErrorType.NotFound);
+				return BaseResponse<GetMySubscriptionDetailResponse>.Fail("Subscription not found for the user.", ResponseErrorType.NotFound);
 			}
-			var response = _mapper.Map<GetSubscriptionDetailResponse>(subscription);
-			return BaseResponse<GetSubscriptionDetailResponse>.Ok(response, "Subscription retrieved successfully.");
+			var response = _mapper.Map<GetMySubscriptionDetailResponse>(subscription);
+			return BaseResponse<GetMySubscriptionDetailResponse>.Ok(response, "Subscription retrieved successfully.");
 		}
 
 		public async Task<BaseResponse<PagedResult<GetHistorySubscriptionResponse>>> GetSubscriptionHistoryByUserIdAsync(Guid userId, GetMySubscriptionHistoryQuery query)
@@ -349,6 +349,17 @@ namespace giaoanpro_backend.Application.Services
 			return result
 				? BaseResponse<string>.Ok("Subscription status updated successfully.")
 				: BaseResponse<string>.Fail("Failed to update subscription status.", ResponseErrorType.InternalError);
+		}
+
+		public async Task<BaseResponse<GetSubscriptionDetailResponse>> GetSubscriptionByIdAsync(Guid subscriptionId)
+		{
+			var subscription = await _unitOfWork.Subscriptions.GetByIdAndUserAsync(subscriptionId, userId: null, includePlan: true, includePayments: true, includeUser: true);
+			if (subscription == null)
+			{
+				return BaseResponse<GetSubscriptionDetailResponse>.Fail("Subscription not found", ResponseErrorType.NotFound);
+			}
+			var response = _mapper.Map<GetSubscriptionDetailResponse>(subscription);
+			return BaseResponse<GetSubscriptionDetailResponse>.Ok(response, "Subscription retrieved successfully.");
 		}
 	}
 }
