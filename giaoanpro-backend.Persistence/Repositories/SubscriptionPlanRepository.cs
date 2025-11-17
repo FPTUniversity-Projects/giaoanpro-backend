@@ -1,9 +1,9 @@
 ﻿using giaoanpro_backend.Application.Interfaces.Repositories;
 using giaoanpro_backend.Domain.Entities;
 using giaoanpro_backend.Persistence.Context;
+using giaoanpro_backend.Persistence.Extensions;
 using giaoanpro_backend.Persistence.Repositories.Bases;
 using System.Linq.Expressions;
-using giaoanpro_backend.Persistence.Extensions;
 
 namespace giaoanpro_backend.Persistence.Repositories
 {

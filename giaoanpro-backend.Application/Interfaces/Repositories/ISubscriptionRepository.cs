@@ -6,13 +6,14 @@ namespace giaoanpro_backend.Application.Interfaces.Repositories
 {
 	public interface ISubscriptionRepository : IGenericRepository<Subscription>
 	{
-		Task<Subscription?> GetByIdAndUserAsync(Guid subscriptionId, Guid? userId, bool includePlan = false, bool includePayments = false, bool includeUser = false);
-		Task<Subscription?> GetPendingRetryAsync(Guid subscriptionId, Guid userId);
-		Task<Subscription?> GetCurrentAccessByUserAsync(Guid userId);
-		Task<IEnumerable<Subscription>> GetHistoryByUserIdAsync(Guid userId);
-		Task<bool> UserHasActiveSubscriptionAsync(Guid userId);
+		Task<Subscription?> GetByIdAndUserAsync(
+			Guid subscriptionId,
+			Guid? userId,
+			bool includePlan = false,
+			bool includePayments = false,
+			bool includeUser = false
+		);
 
-		// New: paged query with filters and search (used by service/controller)
 		Task<(IEnumerable<Subscription> Items, int TotalCount)> GetSubscriptionsAsync(
 			string? search,
 			Guid? userId,
@@ -27,5 +28,17 @@ namespace giaoanpro_backend.Application.Interfaces.Repositories
 			int pageNumber,
 			int pageSize
 		);
+
+		Task<Subscription?> GetPendingRetryAsync(Guid subscriptionId, Guid userId);
+
+		Task<Subscription?> GetCurrentAccessByUserAsync(Guid userId);
+
+		Task<IEnumerable<Subscription>> GetActiveSubscriptionsByUserAsync(Guid userId, bool includePlan = false);
+
+		Task<bool> UserHasActiveSubscriptionAsync(Guid userId);
+
+		Task<bool> UserHasActivePaidSubscriptionAsync(Guid userId);
+
+
 	}
 }
