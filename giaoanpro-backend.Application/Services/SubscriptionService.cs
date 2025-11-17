@@ -18,14 +18,16 @@ namespace giaoanpro_backend.Application.Services
 		private readonly IUnitOfWork _unitOfWork;
 		private readonly IVnPayService _vnPayService;
 		private readonly IValidator<CreateSubscriptionRequest> _createSubscriptionValidator;
+		private readonly IValidator<UpdateSubscriptionStatusRequest> _updateSubscriptionStatusValidator;
 		private readonly IMapper _mapper;
 
-		public SubscriptionService(IUnitOfWork unitOfWork, IVnPayService vnPayService, IMapper mapper, IValidator<CreateSubscriptionRequest> createSubscriptionValidator)
+		public SubscriptionService(IUnitOfWork unitOfWork, IVnPayService vnPayService, IMapper mapper, IValidator<CreateSubscriptionRequest> createSubscriptionValidator, IValidator<UpdateSubscriptionStatusRequest> updateSubscriptionStatusValidator)
 		{
 			_unitOfWork = unitOfWork;
 			_vnPayService = vnPayService;
 			_mapper = mapper;
 			_createSubscriptionValidator = createSubscriptionValidator;
+			_updateSubscriptionStatusValidator = updateSubscriptionStatusValidator;
 		}
 
 		public async Task<BaseResponse<string>> CancelSubscriptionAsync(Guid subscriptionId, Guid userId)
@@ -321,6 +323,32 @@ namespace giaoanpro_backend.Application.Services
 			return result
 				? BaseResponse<string>.Ok("Subscription created successfully.")
 				: BaseResponse<string>.Fail("Failed to create subscription.", ResponseErrorType.InternalError);
+		}
+
+		public async Task<BaseResponse<string>> UpdateSubscriptionStatusAsync(Guid subscriptionId, UpdateSubscriptionStatusRequest request)
+		{
+			var validationResult = await _updateSubscriptionStatusValidator.ValidateAsync(request);
+			if (!validationResult.IsValid)
+			{
+				var errors = validationResult.Errors.Select(e => e.ErrorMessage).ToList();
+				return BaseResponse<string>.Fail("Validation failed", ResponseErrorType.BadRequest, errors);
+			}
+			var subscription = await _unitOfWork.Subscriptions.GetByIdAsync(subscriptionId);
+			if (subscription == null)
+			{
+				return BaseResponse<string>.Fail("Subscription not found.", ResponseErrorType.NotFound);
+			}
+			var activeSubscriptionExists = await _unitOfWork.Subscriptions.UserHasActiveSubscriptionAsync(subscription.UserId);
+			if (request.Status == SubscriptionStatus.Active && activeSubscriptionExists && subscription.Status != SubscriptionStatus.Active)
+			{
+				return BaseResponse<string>.Fail("User already has an active subscription.", ResponseErrorType.Conflict);
+			}
+			subscription.Status = request.Status;
+			_unitOfWork.Subscriptions.Update(subscription);
+			var result = await _unitOfWork.SaveChangesAsync();
+			return result
+				? BaseResponse<string>.Ok("Subscription status updated successfully.")
+				: BaseResponse<string>.Fail("Failed to update subscription status.", ResponseErrorType.InternalError);
 		}
 	}
 }

@@ -14,5 +14,6 @@ namespace giaoanpro_backend.Application.Interfaces.Services
 		public Task<BaseResponse<string>> CreateSubscriptionAsync(CreateSubscriptionRequest request);
 		public Task<BaseResponse<SubscriptionCheckoutResponse>> CreateSubscriptionCheckoutSessionAsync(Guid userId, SubscriptionCheckoutRequest request, HttpContext httpContext);
 		public Task<BaseResponse<string>> CancelSubscriptionAsync(Guid subscriptionId, Guid userId);
+		public Task<BaseResponse<string>> UpdateSubscriptionStatusAsync(Guid subscriptionId, UpdateSubscriptionStatusRequest request);
 	}
 }
