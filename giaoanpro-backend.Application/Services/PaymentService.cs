@@ -136,7 +136,22 @@ namespace giaoanpro_backend.Application.Services
 
 				if (payment.Status == PaymentStatus.Success)
 				{
+					// Activate the subscription associated with this payment
 					subscription.Status = SubscriptionStatus.Active;
+
+					// Deactivate any existing active free subscriptions for the user (upgrade scenario)
+					var activeSubs = await _unitOfWork.Subscriptions.GetActiveSubscriptionsByUserAsync(subscription.UserId, includePlan: true);
+
+					foreach (var old in activeSubs)
+					{
+						if (old.Id == subscription.Id) continue; // skip the newly activated subscription
+						if (old.Plan != null && old.Plan.Price <= 0m)
+						{
+							old.Status = SubscriptionStatus.Canceled;
+							old.EndDate = DateTime.UtcNow;
+							_unitOfWork.Subscriptions.Update(old);
+						}
+					}
 				}
 
 				_unitOfWork.Payments.Update(payment);

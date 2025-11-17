@@ -17,9 +17,9 @@ namespace giaoanpro_backend.Application.Services
 	{
 		private readonly IUnitOfWork _unitOfWork;
 		private readonly IVnPayService _vnPayService;
+		private readonly IMapper _mapper;
 		private readonly IValidator<CreateSubscriptionRequest> _createSubscriptionValidator;
 		private readonly IValidator<UpdateSubscriptionStatusRequest> _updateSubscriptionStatusValidator;
-		private readonly IMapper _mapper;
 
 		public SubscriptionService(IUnitOfWork unitOfWork, IVnPayService vnPayService, IMapper mapper, IValidator<CreateSubscriptionRequest> createSubscriptionValidator, IValidator<UpdateSubscriptionStatusRequest> updateSubscriptionStatusValidator)
 		{
@@ -47,6 +47,78 @@ namespace giaoanpro_backend.Application.Services
 			return result
 				? BaseResponse<string>.Ok("Subscription cancelled successfully.")
 				: BaseResponse<string>.Fail("Failed to cancel subscription.", ResponseErrorType.InternalError);
+		}
+
+		private async Task<BaseResponse<(Subscription, SubscriptionPlan)>> PrepareSubscriptionForCheckoutAsync(Guid userId, SubscriptionCheckoutRequest request)
+		{
+			Subscription? subscription;
+			SubscriptionPlan? plan;
+
+			if (request.SubscriptionId.HasValue) // Retry Flow
+			{
+				subscription = await _unitOfWork.Subscriptions.GetPendingRetryAsync(request.SubscriptionId.Value, userId);
+				if (subscription == null)
+				{
+					return BaseResponse<(Subscription, SubscriptionPlan)>.Fail("Pending subscription not found for retry.", ResponseErrorType.NotFound);
+				}
+
+				plan = await _unitOfWork.SubscriptionPlans.GetPlanByIdAsync(subscription.PlanId);
+				if (plan == null)
+				{
+					return BaseResponse<(Subscription, SubscriptionPlan)>.Fail("Associated plan not found.", ResponseErrorType.NotFound);
+				}
+			}
+			else // New Subscription Flow
+			{
+				plan = await _unitOfWork.SubscriptionPlans.GetPlanByIdAsync(request.PlanId);
+				if (plan == null || !plan.IsActive)
+				{
+					return BaseResponse<(Subscription, SubscriptionPlan)>.Fail("Subscription plan not found or is not active.", ResponseErrorType.NotFound);
+				}
+
+				// If user already has an active paid subscription, do not allow creating another paid subscription.
+				// However, allow creating a paid subscription if the user only has an active free subscription.
+				if (plan.Price > 0m)
+				{
+					var hasActivePaidSubscription = await _unitOfWork.Subscriptions.UserHasActivePaidSubscriptionAsync(userId);
+					if (hasActivePaidSubscription)
+					{
+						return BaseResponse<(Subscription, SubscriptionPlan)>.Fail("User already has an active paid subscription.", ResponseErrorType.Conflict);
+					}
+				}
+				else
+				{
+					// If new plan is free, do not allow if user already has any active subscription (paid or free)
+					var alreadyHasActiveSubscription = await _unitOfWork.Subscriptions.UserHasActiveSubscriptionAsync(userId);
+					if (alreadyHasActiveSubscription)
+					{
+						return BaseResponse<(Subscription, SubscriptionPlan)>.Fail("User already has an active subscription.", ResponseErrorType.Conflict);
+					}
+				}
+
+				var now = DateTime.UtcNow;
+				subscription = new Subscription
+				{
+					Id = Guid.NewGuid(),
+					UserId = userId,
+					PlanId = request.PlanId,
+					StartDate = now,
+					EndDate = now.AddDays(plan.DurationInDays),
+					Status = SubscriptionStatus.Inactive,
+					CurrentLessonPlansCreated = 0,
+					CurrentPromptsUsed = 0,
+					LastPromptResetDate = null
+				};
+
+				await _unitOfWork.Subscriptions.AddAsync(subscription);
+				var saved = await _unitOfWork.SaveChangesAsync();
+				if (!saved)
+				{
+					return BaseResponse<(Subscription, SubscriptionPlan)>.Fail("Failed to create subscription for checkout.", ResponseErrorType.InternalError);
+				}
+			}
+
+			return BaseResponse<(Subscription, SubscriptionPlan)>.Ok((subscription, plan));
 		}
 
 		public async Task<BaseResponse<SubscriptionCheckoutResponse>> CreateSubscriptionCheckoutSessionAsync(Guid userId, SubscriptionCheckoutRequest request, HttpContext httpContext)
@@ -193,59 +265,6 @@ namespace giaoanpro_backend.Application.Services
 			}
 
 			return BaseResponse<PagedResult<GetHistorySubscriptionResponse>>.Ok(paged, "Subscription history retrieved successfully.");
-		}
-
-		private async Task<BaseResponse<(Subscription, SubscriptionPlan)>> PrepareSubscriptionForCheckoutAsync(Guid userId, SubscriptionCheckoutRequest request)
-		{
-			Subscription? subscription;
-			SubscriptionPlan? plan;
-
-			if (request.SubscriptionId.HasValue) // Retry Flow
-			{
-				subscription = await _unitOfWork.Subscriptions.GetPendingRetryAsync(request.SubscriptionId.Value, userId);
-				if (subscription == null)
-				{
-					return BaseResponse<(Subscription, SubscriptionPlan)>.Fail("Pending subscription not found for retry.", ResponseErrorType.NotFound);
-				}
-
-				plan = await _unitOfWork.SubscriptionPlans.GetPlanByIdAsync(subscription.PlanId);
-				if (plan == null)
-				{
-					return BaseResponse<(Subscription, SubscriptionPlan)>.Fail("Associated plan not found.", ResponseErrorType.NotFound);
-				}
-			}
-			else // New Subscription Flow
-			{
-				plan = await _unitOfWork.SubscriptionPlans.GetPlanByIdAsync(request.PlanId);
-				if (plan == null || !plan.IsActive)
-				{
-					return BaseResponse<(Subscription, SubscriptionPlan)>.Fail("Subscription plan not found or is not active.", ResponseErrorType.NotFound);
-				}
-
-				var alreadyHasActiveSubscription = await _unitOfWork.Subscriptions.UserHasActiveSubscriptionAsync(userId);
-				if (alreadyHasActiveSubscription)
-				{
-					return BaseResponse<(Subscription, SubscriptionPlan)>.Fail("User already has an active subscription.", ResponseErrorType.Conflict);
-				}
-
-				var now = DateTime.UtcNow;
-				subscription = new Subscription
-				{
-					Id = Guid.NewGuid(),
-					UserId = userId,
-					PlanId = request.PlanId,
-					StartDate = now,
-					EndDate = now.AddDays(plan.DurationInDays),
-					Status = SubscriptionStatus.Inactive,
-					CurrentLessonPlansCreated = 0,
-					CurrentPromptsUsed = 0,
-					LastPromptResetDate = null
-				};
-
-				await _unitOfWork.Subscriptions.AddAsync(subscription);
-			}
-
-			return BaseResponse<(Subscription, SubscriptionPlan)>.Ok((subscription, plan));
 		}
 
 		public async Task<BaseResponse<PagedResult<GetHistorySubscriptionResponse>>> GetSubscriptionsAsync(GetSubscriptionsQuery query)
