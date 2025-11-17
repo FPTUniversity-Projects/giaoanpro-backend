@@ -20,7 +20,7 @@ namespace giaoanpro_backend.Application.Services
 
 		public async Task<BaseResponse<List<GetUserLookupResponse>>> GetUserLookupsAsync(GetUserLookupRequest request)
 		{
-			var users = await _userRepository.GetUsersAsync(request.IncludeInactive, request.IncludeAdmins);
+			var users = await _userRepository.GetUsersAsync(request.IncludeInactive, request.IncludeTeacherOnly);
 			return BaseResponse<List<GetUserLookupResponse>>.Ok(
 				_mapper.Map<List<GetUserLookupResponse>>(users),
 				"User lookups retrieved successfully.");

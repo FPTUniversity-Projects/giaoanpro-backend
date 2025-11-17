@@ -3,6 +3,6 @@
 	public class GetUserLookupRequest
 	{
 		public bool IncludeInactive { get; set; } = false;
-		public bool IncludeAdmins { get; set; } = false;
+		public bool IncludeTeacherOnly { get; set; } = false;
 	}
 }
