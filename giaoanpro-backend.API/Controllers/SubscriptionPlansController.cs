@@ -2,6 +2,7 @@
 using giaoanpro_backend.Application.DTOs.Responses.Bases;
 using giaoanpro_backend.Application.DTOs.Responses.SubscriptionPlans;
 using giaoanpro_backend.Application.Interfaces.Services;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace giaoanpro_backend.API.Controllers
@@ -33,6 +34,21 @@ namespace giaoanpro_backend.API.Controllers
 		public async Task<ActionResult<BaseResponse<GetSubscriptionPlanResponse>>> GetSubscriptionPlanById(Guid id)
 		{
 			var result = await _subscriptionPlanService.GetSubscriptionPlanByIdAsync(id);
+			return HandleResponse(result);
+		}
+
+		[HttpGet("lookup")]
+		public async Task<ActionResult<BaseResponse<List<SubscriptionPlanLookupResponse>>>> GetSubscriptionPlanLookups()
+		{
+			var result = await _subscriptionPlanService.GetSubscriptionPlanLookupsAsync();
+			return HandleResponse(result);
+		}
+
+		[HttpGet("admin/lookup")]
+		[Authorize(Roles = "Admin")]
+		public async Task<ActionResult<BaseResponse<List<SubscriptionPlanLookupResponse>>>> GetSubscriptionPlanAdminLookups([FromQuery] bool isActiveOnly = true)
+		{
+			var result = await _subscriptionPlanService.GetSubscriptionPlanAdminLookupsAsync(isActiveOnly);
 			return HandleResponse(result);
 		}
 

@@ -128,5 +128,21 @@ namespace giaoanpro_backend.Application.Services
 				? BaseResponse<string>.Ok(null!, "Subscription plan updated successfully.")
 				: BaseResponse<string>.Fail("Failed to update subscription plan.", ResponseErrorType.InternalError);
 		}
+
+		public async Task<BaseResponse<List<SubscriptionPlanLookupResponse>>> GetSubscriptionPlanLookupsAsync()
+		{
+			var plans = await _repository.GetSubscriptionPlansAsync(onlyActive: true);
+			return BaseResponse<List<SubscriptionPlanLookupResponse>>.Ok(
+				_mapper.Map<List<SubscriptionPlanLookupResponse>>(plans),
+				"Subscription plan lookups retrieved successfully.");
+		}
+
+		public async Task<BaseResponse<List<SubscriptionPlanLookupResponse>>> GetSubscriptionPlanAdminLookupsAsync(bool isActiveOnly)
+		{
+			var plans = await _repository.GetSubscriptionPlansAsync(onlyActive: isActiveOnly);
+			return BaseResponse<List<SubscriptionPlanLookupResponse>>.Ok(
+				_mapper.Map<List<SubscriptionPlanLookupResponse>>(plans),
+				"Subscription plan admin lookups retrieved successfully.");
+		}
 	}
 }
