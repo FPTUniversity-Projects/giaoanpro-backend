@@ -20,5 +20,7 @@ namespace giaoanpro_backend.Application.Interfaces.Repositories
 			bool isDescending,
 			int pageNumber,
 			int pageSize);
+
+		Task<bool> HasSubscriptionsAsync(Guid planId);
 	}
 }

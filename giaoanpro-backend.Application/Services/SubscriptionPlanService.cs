@@ -47,6 +47,11 @@ namespace giaoanpro_backend.Application.Services
 			{
 				return BaseResponse<string>.Fail("Subscription plan not found.", ResponseErrorType.NotFound);
 			}
+			var hasSubscriptions = await _repository.HasSubscriptionsAsync(id);
+			if (hasSubscriptions)
+			{
+				return BaseResponse<string>.Fail("Cannot delete subscription plan has subscriptions.", ResponseErrorType.BadRequest);
+			}
 
 			_repository.Remove(existingPlan);
 			var result = await _repository.SaveChangesAsync();
