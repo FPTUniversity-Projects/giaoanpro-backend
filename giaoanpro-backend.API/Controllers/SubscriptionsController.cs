@@ -66,6 +66,11 @@ namespace giaoanpro_backend.API.Controllers
 		[ProducesResponseType(typeof(BaseResponse<string>), StatusCodes.Status500InternalServerError)]
 		public async Task<ActionResult<BaseResponse<string>>> CreateSubscription([FromBody] CreateSubscriptionRequest request)
 		{
+			var validator = ValidateRequestBody<string>(request);
+			if (validator != null)
+			{
+				return validator;
+			}
 			var result = await _subscriptionService.CreateSubscriptionAsync(request);
 			return HandleResponse(result);
 		}
@@ -73,10 +78,16 @@ namespace giaoanpro_backend.API.Controllers
 		[HttpPost("checkout")]
 		[ProducesResponseType(typeof(BaseResponse<SubscriptionCheckoutResponse>), StatusCodes.Status200OK)]
 		[ProducesResponseType(typeof(BaseResponse<SubscriptionCheckoutResponse>), StatusCodes.Status404NotFound)]
+		[ProducesResponseType(typeof(BaseResponse<SubscriptionCheckoutResponse>), StatusCodes.Status400BadRequest)]
 		[ProducesResponseType(typeof(BaseResponse<SubscriptionCheckoutResponse>), StatusCodes.Status409Conflict)]
 		[ProducesResponseType(typeof(BaseResponse<SubscriptionCheckoutResponse>), StatusCodes.Status500InternalServerError)]
 		public async Task<ActionResult<BaseResponse<SubscriptionCheckoutResponse>>> CreateSubscriptionCheckoutSession([FromBody] SubscriptionCheckoutRequest request)
 		{
+			var validator = ValidateRequestBody<SubscriptionCheckoutResponse>(request);
+			if (validator != null)
+			{
+				return validator;
+			}
 			var userId = GetCurrentUserId();
 			var result = await _subscriptionService.CreateSubscriptionCheckoutSessionAsync(userId, request, HttpContext);
 
@@ -105,6 +116,11 @@ namespace giaoanpro_backend.API.Controllers
 		[ProducesResponseType(typeof(BaseResponse<string>), StatusCodes.Status500InternalServerError)]
 		public async Task<ActionResult<BaseResponse<string>>> UpdateSubscriptionStatus([FromRoute] Guid id, [FromBody] UpdateSubscriptionStatusRequest request)
 		{
+			var validator = ValidateRequestBody<string>(request);
+			if (validator != null)
+			{
+				return validator;
+			}
 			var result = await _subscriptionService.UpdateSubscriptionStatusAsync(id, request);
 			return HandleResponse(result);
 		}

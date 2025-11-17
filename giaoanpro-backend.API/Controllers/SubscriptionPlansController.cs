@@ -58,6 +58,12 @@ namespace giaoanpro_backend.API.Controllers
 		[ProducesResponseType(typeof(BaseResponse<string>), StatusCodes.Status500InternalServerError)]
 		public async Task<ActionResult<BaseResponse<string>>> CreateSubscriptionPlan([FromBody] CreateSubscriptionPlanRequest request)
 		{
+			var validation = ValidateRequestBody<string>(request);
+			if (validation != null)
+			{
+				return validation;
+			}
+
 			var result = await _subscriptionPlanService.CreateSubscriptionPlanAsync(request);
 			return HandleResponse(result);
 		}
@@ -69,6 +75,12 @@ namespace giaoanpro_backend.API.Controllers
 		[ProducesResponseType(typeof(BaseResponse<string>), StatusCodes.Status500InternalServerError)]
 		public async Task<ActionResult<BaseResponse<string>>> UpdateSubscriptionPlan(Guid id, [FromBody] UpdateSubscriptionPlanRequest request)
 		{
+			var validation = ValidateRequestBody<string>(request);
+			if (validation != null)
+			{
+				return validation;
+			}
+
 			var result = await _subscriptionPlanService.UpdateSubscriptionPlanAsync(id, request);
 			return HandleResponse(result);
 		}
