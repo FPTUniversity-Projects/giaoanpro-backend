@@ -58,6 +58,13 @@ namespace giaoanpro_backend.API.Controllers
 			return HandleResponse(result);
 		}
 
+		[HttpPost]
+		public async Task<ActionResult<BaseResponse<string>>> CreateSubscription([FromBody] CreateSubscriptionRequest request)
+		{
+			var result = await _subscriptionService.CreateSubscriptionAsync(request);
+			return HandleResponse(result);
+		}
+
 		[HttpPost("checkout")]
 		[ProducesResponseType(typeof(BaseResponse<SubscriptionCheckoutResponse>), StatusCodes.Status200OK)]
 		[ProducesResponseType(typeof(BaseResponse<SubscriptionCheckoutResponse>), StatusCodes.Status404NotFound)]
@@ -71,7 +78,7 @@ namespace giaoanpro_backend.API.Controllers
 			return HandleResponse(result);
 		}
 
-		[HttpPost("{id:guid}/cancel")]
+		[HttpPatch("{id:guid}/cancel")]
 		[ProducesResponseType(typeof(BaseResponse<string>), StatusCodes.Status200OK)]
 		[ProducesResponseType(typeof(BaseResponse<string>), StatusCodes.Status404NotFound)]
 		[ProducesResponseType(typeof(BaseResponse<string>), StatusCodes.Status400BadRequest)]
