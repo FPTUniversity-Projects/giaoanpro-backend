@@ -26,7 +26,7 @@ namespace giaoanpro_backend.Persistence.Repositories
 			return await GetByConditionAsync(u => u.Email == email || u.Username == username);
 		}
 
-		public async Task<IEnumerable<User>> GetUsersAsync(bool includeInactive = false, bool includeAdmins = false)
+		public async Task<IEnumerable<User>> GetUsersAsync(bool includeInactive = false, bool includeTeacherOnly = false)
 		{
 			Expression<Func<User, bool>>? filter = null;
 
@@ -36,13 +36,14 @@ namespace giaoanpro_backend.Persistence.Repositories
 				filter = activeFilter;
 			}
 
-			if (!includeAdmins)
+			// If caller requests teacher-only users, add a filter to restrict results to teachers.
+			if (includeTeacherOnly)
 			{
-				Expression<Func<User, bool>> notAdminFilter = u => u.Role != UserRole.Admin;
+				Expression<Func<User, bool>> teacherFilter = u => u.Role == UserRole.Teacher;
 				if (filter is null)
-					filter = notAdminFilter;
+					filter = teacherFilter;
 				else
-					filter = filter.AndAlso(notAdminFilter);
+					filter = filter.AndAlso(teacherFilter);
 			}
 
 			return await GetAllAsync(filter: filter, asNoTracking: true);
