@@ -19,27 +19,38 @@ namespace giaoanpro_backend.API.Controllers
 			_subscriptionService = subscriptionService;
 		}
 
-		[HttpGet("my-current-access")]
-		[ProducesResponseType(typeof(BaseResponse<GetSubscriptionResponse>), StatusCodes.Status200OK)]
-		[ProducesResponseType(typeof(BaseResponse<GetSubscriptionResponse>), StatusCodes.Status404NotFound)]
-		public async Task<ActionResult<BaseResponse<GetSubscriptionResponse>>> GetMyCurrentAccessSubscription()
+		[HttpGet("me/current")]
+		[ProducesResponseType(typeof(BaseResponse<GetMyCurrentAccessResponse>), StatusCodes.Status200OK)]
+		[ProducesResponseType(typeof(BaseResponse<GetMyCurrentAccessResponse>), StatusCodes.Status404NotFound)]
+		public async Task<ActionResult<BaseResponse<GetMyCurrentAccessResponse>>> GetMyCurrentAccessSubscription()
 		{
 			var userId = GetCurrentUserId();
 			var result = await _subscriptionService.GetCurrentAccessSubscriptionByUserIdAsync(userId);
-
 			return HandleResponse(result);
 		}
 
-		[HttpGet("my-history")]
-		[ProducesResponseType(typeof(BaseResponse<PagedResult<GetHistorySubscriptionResponse>>), StatusCodes.Status200OK)]
-		public async Task<ActionResult<BaseResponse<PagedResult<GetHistorySubscriptionResponse>>>> GetMySubscriptionHistory([FromQuery] GetMySubscriptionHistoryQuery query)
+		[HttpGet("me/history")]
+		[ProducesResponseType(typeof(BaseResponse<PagedResult<GetMyHistorySubscriptionResponse>>), StatusCodes.Status200OK)]
+		public async Task<ActionResult<BaseResponse<PagedResult<GetMyHistorySubscriptionResponse>>>> GetMySubscriptionHistory([FromQuery] GetMySubscriptionHistoryQuery query)
 		{
 			var userId = GetCurrentUserId();
 			var result = await _subscriptionService.GetSubscriptionHistoryByUserIdAsync(userId, query);
 			return HandleResponse(result);
 		}
 
+		[HttpGet("me/{id:guid}")]
+		[ProducesResponseType(typeof(BaseResponse<GetMySubscriptionDetailResponse>), StatusCodes.Status200OK)]
+		[ProducesResponseType(typeof(BaseResponse<GetMySubscriptionDetailResponse>), StatusCodes.Status404NotFound)]
+		public async Task<ActionResult<BaseResponse<GetMySubscriptionDetailResponse>>> GetMySubscriptionById([FromRoute] Guid id)
+		{
+			var userId = GetCurrentUserId();
+			var result = await _subscriptionService.GetUserSubscriptionByIdAsync(id, userId);
+			return HandleResponse(result);
+		}
+
+		// --- Admin / public endpoints ---
 		[HttpGet]
+		[Authorize(Roles = "Admin")]
 		[ProducesResponseType(typeof(BaseResponse<PagedResult<GetHistorySubscriptionResponse>>), StatusCodes.Status200OK)]
 		public async Task<ActionResult<BaseResponse<PagedResult<GetHistorySubscriptionResponse>>>> GetSubscriptions([FromQuery] GetSubscriptionsQuery query)
 		{
@@ -48,17 +59,17 @@ namespace giaoanpro_backend.API.Controllers
 		}
 
 		[HttpGet("{id:guid}")]
+		[Authorize(Roles = "Admin")]
 		[ProducesResponseType(typeof(BaseResponse<GetSubscriptionDetailResponse>), StatusCodes.Status200OK)]
 		[ProducesResponseType(typeof(BaseResponse<GetSubscriptionDetailResponse>), StatusCodes.Status404NotFound)]
-		public async Task<ActionResult<BaseResponse<GetSubscriptionDetailResponse>>> GetMySubscriptionById([FromRoute] Guid id)
+		public async Task<ActionResult<BaseResponse<GetSubscriptionDetailResponse>>> GetSubscriptionById([FromRoute] Guid id)
 		{
-			var userId = GetCurrentUserId();
-			var result = await _subscriptionService.GetUserSubscriptionByIdAsync(id, userId);
-
+			var result = await _subscriptionService.GetSubscriptionByIdAsync(id);
 			return HandleResponse(result);
 		}
 
 		[HttpPost]
+		[Authorize(Roles = "Admin")]
 		[ProducesResponseType(typeof(BaseResponse<string>), StatusCodes.Status200OK)]
 		[ProducesResponseType(typeof(BaseResponse<string>), StatusCodes.Status400BadRequest)]
 		[ProducesResponseType(typeof(BaseResponse<string>), StatusCodes.Status404NotFound)]
@@ -90,7 +101,6 @@ namespace giaoanpro_backend.API.Controllers
 			}
 			var userId = GetCurrentUserId();
 			var result = await _subscriptionService.CreateSubscriptionCheckoutSessionAsync(userId, request, HttpContext);
-
 			return HandleResponse(result);
 		}
 
@@ -103,7 +113,6 @@ namespace giaoanpro_backend.API.Controllers
 		{
 			var userId = GetCurrentUserId();
 			var result = await _subscriptionService.CancelSubscriptionAsync(id, userId);
-
 			return HandleResponse(result);
 		}
 

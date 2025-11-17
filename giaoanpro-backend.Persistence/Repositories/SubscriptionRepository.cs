@@ -16,21 +16,33 @@ namespace giaoanpro_backend.Persistence.Repositories
 		{
 		}
 
-		public async Task<Subscription?> GetByIdAndUserAsync(Guid subscriptionId, Guid userId, bool includePlan = false, bool includePayments = false)
+		public async Task<Subscription?> GetByIdAndUserAsync(Guid subscriptionId, Guid? userId, bool includePlan = false, bool includePayments = false, bool includeUser = false)
 		{
+			// If userId is null (admin/public retrieval), include related entities by default unless caller explicitly requests otherwise.
+			bool includePlanFlag = includePlan || userId == null;
+			bool includePaymentsFlag = includePayments || userId == null;
+			bool includeUserFlag = includeUser || userId == null;
+
 			Func<IQueryable<Subscription>, IIncludableQueryable<Subscription, object>>? include = null;
 
-			if (includePlan && includePayments)
+			if (includePlanFlag || includePaymentsFlag || includeUserFlag)
 			{
-				include = q => q.Include(s => s.Plan).Include(s => s.Payments);
+				include = q =>
+				{
+					var inc = q;
+					if (includePlanFlag)
+						inc = inc.Include(s => s.Plan);
+					if (includePaymentsFlag)
+						inc = inc.Include(s => s.Payments);
+					if (includeUserFlag)
+						inc = inc.Include(s => s.User);
+					return (IIncludableQueryable<Subscription, object>)inc;
+				};
 			}
-			else if (includePlan)
+
+			if (userId == null)
 			{
-				include = q => q.Include(s => s.Plan);
-			}
-			else if (includePayments)
-			{
-				include = q => q.Include(s => s.Payments);
+				return await GetByConditionAsync(s => s.Id == subscriptionId, include);
 			}
 
 			return await GetByConditionAsync(s => s.Id == subscriptionId && s.UserId == userId, include);
@@ -43,7 +55,7 @@ namespace giaoanpro_backend.Persistence.Repositories
 
 		public async Task<Subscription?> GetCurrentAccessByUserAsync(Guid userId)
 		{
-			return await GetByConditionAsync(s => s.UserId == userId && (s.Status == SubscriptionStatus.Active || (s.Status == SubscriptionStatus.Canceled && s.EndDate >= DateTime.UtcNow)));
+			return await GetByConditionAsync(s => s.UserId == userId && (s.Status == SubscriptionStatus.Active || (s.Status == SubscriptionStatus.Canceled && s.EndDate >= DateTime.UtcNow)), include: s => s.Include(s => s.Plan));
 		}
 
 		public async Task<IEnumerable<Subscription>> GetHistoryByUserIdAsync(Guid userId)
