@@ -2,7 +2,7 @@
 {
 	public enum ActivityType
 	{
-		Startup,
+		Startup = 1,
 		Knowledge,
 		Practice,
 		Apply
