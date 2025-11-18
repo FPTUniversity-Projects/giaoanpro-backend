@@ -9,6 +9,7 @@ using Microsoft.OpenApi.Any;
 using System.Text.Json.Serialization;
 using giaoanpro_backend.Domain.Enums;
 
+
 var builder = WebApplication.CreateBuilder(args);
 
 // Load .env manually in Development
@@ -73,6 +74,7 @@ builder.Services.Configure<Microsoft.AspNetCore.Http.Json.JsonOptions>(options =
 	options.SerializerOptions.Converters.Add(new JsonStringEnumConverter());
 	// options.SerializerOptions.PropertyNamingPolicy = JsonNamingPolicy.CamelCase;
 });
+
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>
