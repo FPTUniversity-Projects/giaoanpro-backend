@@ -1,10 +1,10 @@
-﻿using giaoanpro_backend.Application.Interfaces.Repositories;
+﻿using giaoanpro_backend.Application.Interfaces.Repositories.Bases;
 using giaoanpro_backend.Persistence.Context;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Query;
 using System.Linq.Expressions;
 
-namespace giaoanpro_backend.Persistence.Repositories
+namespace giaoanpro_backend.Persistence.Repositories.Bases
 {
 	public class GenericRepository<T> : IGenericRepository<T> where T : class
 	{

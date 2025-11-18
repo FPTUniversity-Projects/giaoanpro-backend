@@ -2,48 +2,40 @@
 using giaoanpro_backend.Application.DTOs.Responses.Payments;
 using giaoanpro_backend.Application.DTOs.Responses.VnPays;
 using giaoanpro_backend.Application.Interfaces.Repositories;
+using giaoanpro_backend.Application.Interfaces.Repositories.Bases;
 using giaoanpro_backend.Application.Interfaces.Services;
 using giaoanpro_backend.Application.Interfaces.Services._3PServices;
-using giaoanpro_backend.Domain.Entities;
 using giaoanpro_backend.Domain.Enums;
 using MapsterMapper;
 using Microsoft.AspNetCore.Http;
-using Microsoft.EntityFrameworkCore;
 
 namespace giaoanpro_backend.Application.Services
 {
 	public class PaymentService : IPaymentService
 	{
 		private readonly IUnitOfWork _unitOfWork;
+		private readonly IPaymentRepository _paymentRepository;
 		private readonly IVnPayService _vnPayService;
 		private readonly IMapper _mapper;
 
-		public PaymentService(IUnitOfWork unitOfWork, IVnPayService vnPayService, IMapper mapper)
+		public PaymentService(IUnitOfWork unitOfWork, IVnPayService vnPayService, IMapper mapper, IPaymentRepository paymentRepository)
 		{
 			_unitOfWork = unitOfWork;
 			_vnPayService = vnPayService;
 			_mapper = mapper;
+			_paymentRepository = paymentRepository;
 		}
 
 		public async Task<BaseResponse<List<GetPaymentResponse>>> GetPaymentHistoryByUserIdAsync(Guid userId)
 		{
 			if (userId == Guid.Empty)
-				return BaseResponse<List<GetPaymentResponse>>.Fail("Invalid user id.");
+				return BaseResponse<List<GetPaymentResponse>>.Fail("Invalid user id.", ResponseErrorType.BadRequest);
 
-			var payments = await _unitOfWork.Repository<Payment>().GetAllAsync(
-				filter: p => p.Subscription.UserId == userId,
-				include: q => q
-					.Include(p => p.Subscription)
-						.ThenInclude(s => s.Plan),
-				orderBy: q => q.OrderByDescending(p => p.PaymentDate),
-				asNoTracking: true
-			);
-
-			var paymentList = payments?.ToList() ?? [];
+			var paymentList = (await _paymentRepository.GetHistoryByUserIdAsync(userId)).ToList();
 
 			if (paymentList.Count == 0)
 			{
-				return BaseResponse<List<GetPaymentResponse>>.Ok([], "No history found.");
+				return BaseResponse<List<GetPaymentResponse>>.Ok(new List<GetPaymentResponse>(), "No history found.");
 			}
 
 			var dtoList = _mapper.Map<List<GetPaymentResponse>>(paymentList);
@@ -53,28 +45,20 @@ namespace giaoanpro_backend.Application.Services
 		public async Task<BaseResponse<GetPaymentDetailResponse>> GetUserPaymentByIdAsync(Guid paymentId, Guid userId)
 		{
 			if (paymentId == Guid.Empty)
-				return BaseResponse<GetPaymentDetailResponse>.Fail("Invalid payment id.");
+				return BaseResponse<GetPaymentDetailResponse>.Fail("Invalid payment id.", ResponseErrorType.BadRequest);
 			if (userId == Guid.Empty)
-				return BaseResponse<GetPaymentDetailResponse>.Fail("Invalid user id.");
+				return BaseResponse<GetPaymentDetailResponse>.Fail("Invalid user id.", ResponseErrorType.BadRequest);
 
-			var payment = await _unitOfWork.Repository<Payment>().FirstOrDefaultAsync(
-				p => p.Id == paymentId,
-				include: q => q
-					.Include(p => p.Subscription)
-						.ThenInclude(s => s.User)
-					.Include(p => p.Subscription)
-						.ThenInclude(s => s.Plan),
-				asNoTracking: true
-			);
+			var payment = await _paymentRepository.GetByIdWithSubscriptionDetailsAsync(paymentId);
 
 			if (payment == null)
 			{
-				return BaseResponse<GetPaymentDetailResponse>.Fail("Payment record not found.");
+				return BaseResponse<GetPaymentDetailResponse>.Fail("Payment record not found.", ResponseErrorType.NotFound);
 			}
 
 			if (payment.Subscription == null || payment.Subscription.UserId != userId)
 			{
-				return BaseResponse<GetPaymentDetailResponse>.Fail("Payment record not found.");
+				return BaseResponse<GetPaymentDetailResponse>.Fail("Payment record not found.", ResponseErrorType.NotFound);
 			}
 
 			var payload = _mapper.Map<GetPaymentDetailResponse>(payment);
@@ -83,21 +67,21 @@ namespace giaoanpro_backend.Application.Services
 
 		public async Task<BaseResponse<VnPayReturnResponse>> GetVnPayReturnResponseAsync(IQueryCollection queryParameters)
 		{
-			var vnPayResponse = await _vnPayService.GetPaymentResponseAsync(queryParameters);
+			var vnPayResponse = _vnPayService.GetPaymentResponseAsync(queryParameters);
 			if (vnPayResponse == null || vnPayResponse.PaymentId == Guid.Empty)
 			{
-				return BaseResponse<VnPayReturnResponse>.Fail("Invalid VNPay response.");
+				return BaseResponse<VnPayReturnResponse>.Fail("Invalid VNPay response.", ResponseErrorType.BadRequest);
 			}
 
 			if (vnPayResponse.IsSuccess == false)
 			{
-				return BaseResponse<VnPayReturnResponse>.Fail("VNPay payment failed: " + vnPayResponse.Message);
+				return BaseResponse<VnPayReturnResponse>.Fail("VNPay payment failed: " + vnPayResponse.Message, ResponseErrorType.BadRequest);
 			}
 
-			var payment = await _unitOfWork.Repository<Payment>().GetByIdAsync(vnPayResponse.PaymentId);
+			var payment = await _unitOfWork.Payments.GetByIdAsync(vnPayResponse.PaymentId);
 			if (payment == null)
 			{
-				return BaseResponse<VnPayReturnResponse>.Fail("Payment record not found.");
+				return BaseResponse<VnPayReturnResponse>.Fail("Payment record not found.", ResponseErrorType.NotFound);
 			}
 
 			var subscriptionId = payment.SubscriptionId;
@@ -113,17 +97,17 @@ namespace giaoanpro_backend.Application.Services
 
 		public async Task<BaseResponse<bool>> ProcessVnPayPaymentCallbackAsync(IQueryCollection queryParameters)
 		{
-			var vnPayResponse = await _vnPayService.GetPaymentResponseAsync(queryParameters);
+			var vnPayResponse = _vnPayService.GetPaymentResponseAsync(queryParameters);
 			if (vnPayResponse == null || vnPayResponse.PaymentId == Guid.Empty)
 			{
-				return BaseResponse<bool>.Fail("VNPay payment failed");
+				return BaseResponse<bool>.Fail("VNPay payment failed", ResponseErrorType.BadRequest);
 			}
 
 			// check payment 
-			var payment = await _unitOfWork.Repository<Payment>().GetByIdAsync(vnPayResponse.PaymentId);
+			var payment = await _unitOfWork.Payments.GetByIdAsync(vnPayResponse.PaymentId);
 			if (payment == null)
 			{
-				return BaseResponse<bool>.Fail("Payment record not found.");
+				return BaseResponse<bool>.Fail("Payment record not found.", ResponseErrorType.NotFound);
 			}
 			if (payment.Status != PaymentStatus.Pending)
 			{
@@ -131,14 +115,14 @@ namespace giaoanpro_backend.Application.Services
 			}
 			if (payment.AmountPaid != vnPayResponse.Amount)
 			{
-				return BaseResponse<bool>.Fail("Payment amount mismatch.");
+				return BaseResponse<bool>.Fail("Payment amount mismatch.", ResponseErrorType.BadRequest);
 			}
 
 			// check subscription
-			var subscription = await _unitOfWork.Repository<Subscription>().GetByIdAsync(payment.SubscriptionId);
+			var subscription = await _unitOfWork.Subscriptions.GetByIdAsync(payment.SubscriptionId);
 			if (subscription == null)
 			{
-				return BaseResponse<bool>.Fail("Subscription record not found.");
+				return BaseResponse<bool>.Fail("Subscription record not found.", ResponseErrorType.NotFound);
 			}
 
 			// update payment & subscription status
@@ -152,11 +136,26 @@ namespace giaoanpro_backend.Application.Services
 
 				if (payment.Status == PaymentStatus.Success)
 				{
+					// Activate the subscription associated with this payment
 					subscription.Status = SubscriptionStatus.Active;
+
+					// Deactivate any existing active free subscriptions for the user (upgrade scenario)
+					var activeSubs = await _unitOfWork.Subscriptions.GetActiveSubscriptionsByUserAsync(subscription.UserId, includePlan: true);
+
+					foreach (var old in activeSubs)
+					{
+						if (old.Id == subscription.Id) continue; // skip the newly activated subscription
+						if (old.Plan != null && old.Plan.Price <= 0m)
+						{
+							old.Status = SubscriptionStatus.Canceled;
+							old.EndDate = DateTime.UtcNow;
+							_unitOfWork.Subscriptions.Update(old);
+						}
+					}
 				}
 
-				_unitOfWork.Repository<Payment>().Update(payment);
-				_unitOfWork.Repository<Subscription>().Update(subscription);
+				_unitOfWork.Payments.Update(payment);
+				_unitOfWork.Subscriptions.Update(subscription);
 
 				await _unitOfWork.CommitTransactionAsync();
 				return BaseResponse<bool>.Ok(true, "Payment processed successfully.");
@@ -164,7 +163,7 @@ namespace giaoanpro_backend.Application.Services
 			catch (Exception ex)
 			{
 				await _unitOfWork.RollbackTransactionAsync();
-				return BaseResponse<bool>.Fail("Error processing payment callback: " + ex.Message);
+				return BaseResponse<bool>.Fail("Error processing payment callback: " + ex.Message, ResponseErrorType.InternalError);
 			}
 		}
 	}

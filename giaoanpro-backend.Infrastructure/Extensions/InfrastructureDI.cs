@@ -1,8 +1,8 @@
-﻿using giaoanpro_backend.Application.Interfaces.Repositories;
+﻿using giaoanpro_backend.Application.Interfaces.Repositories.Bases;
 using giaoanpro_backend.Application.Interfaces.Services._3PServices;
 using giaoanpro_backend.Infrastructure._3PServices;
 using giaoanpro_backend.Persistence.Context;
-using giaoanpro_backend.Persistence.Repositories;
+using giaoanpro_backend.Persistence.Repositories.Bases;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;

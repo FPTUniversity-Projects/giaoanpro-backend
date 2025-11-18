@@ -1,4 +1,6 @@
 ﻿using giaoanpro_backend.Application.DTOs.Requests.Auths;
+using giaoanpro_backend.Application.DTOs.Responses.Auths;
+using giaoanpro_backend.Application.DTOs.Responses.Bases;
 using giaoanpro_backend.Application.Interfaces.Services;
 using giaoanpro_backend.Domain.Enums;
 using Microsoft.AspNetCore.Authorization;
@@ -8,7 +10,7 @@ namespace giaoanpro_backend.API.Controllers
 {
 	[Route("api/[controller]")]
 	[ApiController]
-	public class AuthsController : ControllerBase
+	public class AuthsController : BaseApiController
 	{
 		private readonly IAuthService _authService;
 
@@ -18,51 +20,85 @@ namespace giaoanpro_backend.API.Controllers
 		}
 
 		[HttpPost("login")]
-		public async Task<IActionResult> Login([FromBody] LoginRequest request)
+		[ProducesResponseType(typeof(BaseResponse<TokenResponse>), StatusCodes.Status200OK)]
+		[ProducesResponseType(typeof(BaseResponse<TokenResponse>), StatusCodes.Status400BadRequest)]
+		[ProducesResponseType(typeof(BaseResponse<TokenResponse>), StatusCodes.Status401Unauthorized)]
+		[ProducesResponseType(typeof(BaseResponse<TokenResponse>), StatusCodes.Status403Forbidden)]
+		[ProducesResponseType(typeof(BaseResponse<TokenResponse>), StatusCodes.Status500InternalServerError)]
+		public async Task<ActionResult<BaseResponse<TokenResponse>>> Login([FromBody] LoginRequest request)
 		{
+			var validation = ValidateRequestBody<TokenResponse>(request);
+			if (validation != null)
+			{
+				return validation;
+			}
+
 			var result = await _authService.LoginAsync(request);
-			return result.Success ? Ok(result) : Unauthorized(result);
+			return HandleResponse(result);
 		}
 
 		[HttpPost("register")]
-		public async Task<IActionResult> Register([FromBody] RegisterRequest request, [FromQuery] UserRole role)
+		[ProducesResponseType(typeof(BaseResponse<string>), StatusCodes.Status200OK)]
+		[ProducesResponseType(typeof(BaseResponse<string>), StatusCodes.Status400BadRequest)]
+		[ProducesResponseType(typeof(BaseResponse<string>), StatusCodes.Status409Conflict)]
+		[ProducesResponseType(typeof(BaseResponse<string>), StatusCodes.Status500InternalServerError)]
+		public async Task<ActionResult<BaseResponse<string>>> Register([FromBody] RegisterRequest request, [FromQuery] UserRole role)
 		{
+			var validation = ValidateRequestBody<string>(request);
+			if (validation != null)
+			{
+				return validation;
+			}
+
 			if (role == UserRole.Admin)
 			{
 				return Forbid("Cannot register as Admin role.");
 			}
 			var result = await _authService.RegisterAsync(request, role);
-			return result.Success ? Ok(result) : BadRequest(result);
+			return HandleResponse(result);
 		}
 
 		[HttpPost("admin/register")]
 		[Authorize(Roles = "Admin")]
-		public async Task<IActionResult> RegisterByAdmin([FromBody] RegisterRequest request, [FromQuery] UserRole role)
+		[ProducesResponseType(typeof(BaseResponse<string>), StatusCodes.Status200OK)]
+		[ProducesResponseType(typeof(BaseResponse<string>), StatusCodes.Status400BadRequest)]
+		[ProducesResponseType(typeof(BaseResponse<string>), StatusCodes.Status409Conflict)]
+		[ProducesResponseType(typeof(BaseResponse<string>), StatusCodes.Status500InternalServerError)]
+		public async Task<ActionResult<BaseResponse<string>>> RegisterByAdmin([FromBody] RegisterRequest request, [FromQuery] UserRole role)
 		{
+			var validation = ValidateRequestBody<string>(request);
+			if (validation != null)
+			{
+				return validation;
+			}
+
 			var result = await _authService.RegisterAsync(request, role);
-			return result.Success ? Ok(result) : BadRequest(result);
+			return HandleResponse(result);
 		}
 
 		[HttpPost("google-login")]
-		public async Task<IActionResult> GoogleLogin([FromBody] GoogleLoginRequest request, [FromQuery] UserRole? role = null)
+		[ProducesResponseType(typeof(BaseResponse<TokenResponse>), StatusCodes.Status200OK)]
+		[ProducesResponseType(typeof(BaseResponse<TokenResponse>), StatusCodes.Status400BadRequest)]
+		[ProducesResponseType(typeof(BaseResponse<TokenResponse>), StatusCodes.Status403Forbidden)]
+		[ProducesResponseType(typeof(BaseResponse<TokenResponse>), StatusCodes.Status500InternalServerError)]
+		public async Task<ActionResult<BaseResponse<TokenResponse>>> GoogleLogin([FromBody] GoogleLoginRequest request, [FromQuery] UserRole? role = null)
 		{
+			var validation = ValidateRequestBody<TokenResponse>(request);
+			if (validation != null)
+			{
+				return validation;
+			}
+
 			var result = await _authService.LoginWithGoogleAsync(request, role);
 			if (!result.Success)
-				return Unauthorized(result);
+				return HandleResponse(result);
 
 			if (result.Payload is not null && result.Payload.Role == UserRole.Admin)
 			{
 				return Forbid("Admin role cannot be provisioned via Google login.");
 			}
 
-			return Ok(result);
-		}
-
-		[HttpGet("Test")]
-		[Authorize]
-		public IActionResult Test()
-		{
-			return Ok("API is working!");
+			return HandleResponse(result);
 		}
 	}
 }

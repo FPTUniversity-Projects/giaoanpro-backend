@@ -1,12 +1,15 @@
 ﻿using giaoanpro_backend.Application.DTOs.Requests.SubscriptionPlans;
+using giaoanpro_backend.Application.DTOs.Responses.Bases;
+using giaoanpro_backend.Application.DTOs.Responses.SubscriptionPlans;
 using giaoanpro_backend.Application.Interfaces.Services;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace giaoanpro_backend.API.Controllers
 {
 	[Route("api/[controller]")]
 	[ApiController]
-	public class SubscriptionPlansController : ControllerBase
+	public class SubscriptionPlansController : BaseApiController
 	{
 		private readonly ISubscriptionPlanService _subscriptionPlanService;
 
@@ -16,38 +19,80 @@ namespace giaoanpro_backend.API.Controllers
 		}
 
 		[HttpGet]
-		public async Task<IActionResult> GetAllSubscriptionPlans()
+		[ProducesResponseType(typeof(BaseResponse<PagedResult<GetSubscriptionPlanResponse>>), StatusCodes.Status200OK)]
+		[ProducesResponseType(typeof(BaseResponse<PagedResult<GetSubscriptionPlanResponse>>), StatusCodes.Status500InternalServerError)]
+		public async Task<ActionResult<BaseResponse<PagedResult<GetSubscriptionPlanResponse>>>> GetSubscriptionPlans([FromQuery] GetSubscriptionPlansQuery query)
 		{
-			var result = await _subscriptionPlanService.GetAllSubscriptionPlansAsync();
-			return result.Success ? Ok(result) : BadRequest(result);
+			var result = await _subscriptionPlanService.GetSubscriptionPlansAsync(query);
+			return HandleResponse(result);
 		}
 
 		[HttpGet("{id:Guid}")]
-		public async Task<IActionResult> GetSubscriptionPlanById(Guid id)
+		[ProducesResponseType(typeof(BaseResponse<GetSubscriptionPlanResponse>), StatusCodes.Status200OK)]
+		[ProducesResponseType(typeof(BaseResponse<GetSubscriptionPlanResponse>), StatusCodes.Status404NotFound)]
+		[ProducesResponseType(typeof(BaseResponse<GetSubscriptionPlanResponse>), StatusCodes.Status500InternalServerError)]
+		public async Task<ActionResult<BaseResponse<GetSubscriptionPlanResponse>>> GetSubscriptionPlanById(Guid id)
 		{
 			var result = await _subscriptionPlanService.GetSubscriptionPlanByIdAsync(id);
-			return result.Success ? Ok(result) : BadRequest(result);
+			return HandleResponse(result);
+		}
+
+		[HttpGet("lookup")]
+		public async Task<ActionResult<BaseResponse<List<SubscriptionPlanLookupResponse>>>> GetSubscriptionPlanLookups()
+		{
+			var result = await _subscriptionPlanService.GetSubscriptionPlanLookupsAsync();
+			return HandleResponse(result);
+		}
+
+		[HttpGet("admin/lookup")]
+		[Authorize(Roles = "Admin")]
+		public async Task<ActionResult<BaseResponse<List<SubscriptionPlanLookupResponse>>>> GetSubscriptionPlanAdminLookups([FromQuery] bool isActiveOnly = true)
+		{
+			var result = await _subscriptionPlanService.GetSubscriptionPlanAdminLookupsAsync(isActiveOnly);
+			return HandleResponse(result);
 		}
 
 		[HttpPost]
-		public async Task<IActionResult> CreateSubscriptionPlan([FromBody] CreateSubscriptionPlanRequest request)
+		[ProducesResponseType(typeof(BaseResponse<string>), StatusCodes.Status200OK)]
+		[ProducesResponseType(typeof(BaseResponse<string>), StatusCodes.Status400BadRequest)]
+		[ProducesResponseType(typeof(BaseResponse<string>), StatusCodes.Status500InternalServerError)]
+		public async Task<ActionResult<BaseResponse<string>>> CreateSubscriptionPlan([FromBody] CreateSubscriptionPlanRequest request)
 		{
+			var validation = ValidateRequestBody<string>(request);
+			if (validation != null)
+			{
+				return validation;
+			}
+
 			var result = await _subscriptionPlanService.CreateSubscriptionPlanAsync(request);
-			return result.Success ? Ok(result) : BadRequest(result);
+			return HandleResponse(result);
 		}
 
 		[HttpPut("{id:Guid}")]
-		public async Task<IActionResult> UpdateSubscriptionPlan(Guid id, [FromBody] UpdateSubscriptionPlanRequest request)
+		[ProducesResponseType(typeof(BaseResponse<string>), StatusCodes.Status200OK)]
+		[ProducesResponseType(typeof(BaseResponse<string>), StatusCodes.Status400BadRequest)]
+		[ProducesResponseType(typeof(BaseResponse<string>), StatusCodes.Status404NotFound)]
+		[ProducesResponseType(typeof(BaseResponse<string>), StatusCodes.Status500InternalServerError)]
+		public async Task<ActionResult<BaseResponse<string>>> UpdateSubscriptionPlan(Guid id, [FromBody] UpdateSubscriptionPlanRequest request)
 		{
+			var validation = ValidateRequestBody<string>(request);
+			if (validation != null)
+			{
+				return validation;
+			}
+
 			var result = await _subscriptionPlanService.UpdateSubscriptionPlanAsync(id, request);
-			return result.Success ? Ok(result) : BadRequest(result);
+			return HandleResponse(result);
 		}
 
 		[HttpDelete("{id:Guid}")]
-		public async Task<IActionResult> DeleteSubscriptionPlan(Guid id)
+		[ProducesResponseType(typeof(BaseResponse<string>), StatusCodes.Status200OK)]
+		[ProducesResponseType(typeof(BaseResponse<string>), StatusCodes.Status404NotFound)]
+		[ProducesResponseType(typeof(BaseResponse<string>), StatusCodes.Status500InternalServerError)]
+		public async Task<ActionResult<BaseResponse<string>>> DeleteSubscriptionPlan(Guid id)
 		{
 			var result = await _subscriptionPlanService.DeleteSubscriptionPlanAsync(id);
-			return result.Success ? Ok(result) : BadRequest(result);
+			return HandleResponse(result);
 		}
 	}
 }

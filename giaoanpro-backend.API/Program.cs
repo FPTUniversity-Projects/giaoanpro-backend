@@ -2,11 +2,12 @@ using giaoanpro_backend.API.Extensions;
 using giaoanpro_backend.Application.Extensions;
 using giaoanpro_backend.Infrastructure.Extensions;
 using giaoanpro_backend.Persistence.Context;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.OpenApi.Models;
 using Microsoft.OpenApi.Any;
 using System.Text.Json.Serialization;
-using giaoanpro_backend.Domain.Enums;
+
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -54,9 +55,23 @@ builder.Services.AddJWTServices(builder.Configuration);
 // Force all routes to be lowercase
 builder.Services.AddRouting(options => options.LowercaseUrls = true);
 
+// To suppress the automatic model state validation
+builder.Services.Configure<ApiBehaviorOptions>(options =>
+{
+	options.SuppressModelStateInvalidFilter = true;
+});
+
+// JSON options
 builder.Services.AddControllers().AddJsonOptions(options =>
 {
-    options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter(allowIntegerValues: true));
+	options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
+	// options.JsonSerializerOptions.PropertyNamingPolicy = JsonNamingPolicy.CamelCase;
+});
+
+builder.Services.Configure<Microsoft.AspNetCore.Http.Json.JsonOptions>(options =>
+{
+	options.SerializerOptions.Converters.Add(new JsonStringEnumConverter());
+	// options.SerializerOptions.PropertyNamingPolicy = JsonNamingPolicy.CamelCase;
 });
 
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
