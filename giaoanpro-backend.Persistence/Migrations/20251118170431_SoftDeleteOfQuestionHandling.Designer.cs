@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using giaoanpro_backend.Persistence.Context;
 
@@ -11,9 +12,11 @@ using giaoanpro_backend.Persistence.Context;
 namespace giaoanpro_backend.Persistence.Migrations
 {
     [DbContext(typeof(GiaoanproDBContext))]
-    partial class GiaoanproDBContextModelSnapshot : ModelSnapshot
+    [Migration("20251118170431_SoftDeleteOfQuestionHandling")]
+    partial class SoftDeleteOfQuestionHandling
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -50,10 +53,6 @@ namespace giaoanpro_backend.Persistence.Migrations
                         .HasColumnType("uniqueidentifier");
 
                     b.Property<string>("Product")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("Title")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 

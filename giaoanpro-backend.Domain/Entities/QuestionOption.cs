@@ -2,7 +2,7 @@
 
 namespace giaoanpro_backend.Domain.Entities
 {
-	public class QuestionOption : AuditableEntity
+	public class QuestionOption : AuditableEntity, ISoftDeleteEntity
 	{
 		public Guid Id { get; set; }
 		public Guid QuestionId { get; set; }
@@ -11,5 +11,8 @@ namespace giaoanpro_backend.Domain.Entities
 
 		// Navigation property
 		public virtual Question Question { get; set; } = null!;
+
+		// ISoftDeleteEntity implementation
+		public DateTime? DeletedAt { get; set; }
 	}
 }
