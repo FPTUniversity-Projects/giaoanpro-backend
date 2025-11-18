@@ -53,6 +53,90 @@ namespace giaoanpro_backend.Persistence.Repositories.Bases
 			}
 		}
 
+		public IGradeRepository Grades
+		{
+			get
+			{
+				var key = typeof(IGradeRepository);
+				if (!_repositories.TryGetValue(key, out var repo))
+				{
+					repo = new GradeRepository(_context);
+					_repositories[key] = repo!;
+				}
+				return (IGradeRepository)repo!;
+			}
+		}
+
+		public ISemesterRepository Semesters
+		{
+			get
+			{
+				var key = typeof(ISemesterRepository);
+				if (!_repositories.TryGetValue(key, out var repo))
+				{
+					repo = new SemesterRepository(_context);
+					_repositories[key] = repo!;
+				}
+				return (ISemesterRepository)repo!;
+			}
+		}
+
+		public ISubjectRepository Subjects
+		{
+			get
+			{
+				var key = typeof(ISubjectRepository);
+				if (!_repositories.TryGetValue(key, out var repo))
+				{
+					repo = new SubjectRepository(_context);
+					_repositories[key] = repo!;
+				}
+				return (ISubjectRepository)repo!;
+			}
+		}
+
+		public ISyllabusRepository Syllabuses
+		{
+			get
+			{
+				var key = typeof(ISyllabusRepository);
+				if (!_repositories.TryGetValue(key, out var repo))
+				{
+					repo = new SyllabusRepository(_context);
+					_repositories[key] = repo!;
+				}
+				return (ISyllabusRepository)repo!;
+			}
+		}
+
+		public IClassRepository Classes
+		{
+			get
+			{
+				var key = typeof(IClassRepository);
+				if (!_repositories.TryGetValue(key, out var repo))
+				{
+					repo = new ClassRepository(_context);
+					_repositories[key] = repo!;
+				}
+				return (IClassRepository)repo!;
+			}
+		}
+
+		public IUserRepository Users
+		{
+			get
+			{
+				var key = typeof(IUserRepository);
+				if (!_repositories.TryGetValue(key, out var repo))
+				{
+					repo = new UserRepository(_context);
+					_repositories[key] = repo!;
+				}
+				return (IUserRepository)repo!;
+			}
+		}
+
 		public UnitOfWork(GiaoanproDBContext context)
 		{
 			_context = context ?? throw new ArgumentNullException(nameof(context));
