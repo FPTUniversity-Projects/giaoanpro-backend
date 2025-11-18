@@ -3,7 +3,7 @@
 	public enum TypeValue
 	{
 		// Question types
-		Theory,
+		Theory = 1,
 		Exercise,
 
 		// Difficulty levels
