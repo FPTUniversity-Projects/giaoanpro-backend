@@ -7,6 +7,7 @@ namespace giaoanpro_backend.Application.DTOs.Requests.Questions
 	{
 		public string Text { get; set; } = string.Empty;
 		public List<UpdateQuestionOptionDto> Options { get; set; } = new();
+		public Guid LessonPlanId { get; set; }
 		[JsonConverter(typeof(JsonStringEnumConverter))]
 		public QuestionType QuestionType { get; set; }
 		[JsonConverter(typeof(JsonStringEnumConverter))]

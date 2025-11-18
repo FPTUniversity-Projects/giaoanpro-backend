@@ -9,6 +9,7 @@ using MapsterMapper;
 using Microsoft.EntityFrameworkCore;
 using System.Linq.Expressions;
 using giaoanpro_backend.Domain.Enums;
+using giaoanpro_backend.Application.Interfaces.Repositories.Bases;
 
 namespace giaoanpro_backend.Application.Services
 {

@@ -246,6 +246,13 @@ namespace giaoanpro_backend.Persistence.Context
 				.HasForeignKey(lp => lp.SubjectId)
 				.OnDelete(DeleteBehavior.Restrict);
 
+			// LessonPlan -> Questions (1:n)
+			modelBuilder.Entity<Question>()
+				.HasOne(q => q.LessonPlan)
+				.WithMany(lp => lp.Questions)
+				.HasForeignKey(q => q.LessonPlanId)
+				.OnDelete(DeleteBehavior.Cascade);
+
 			// Removed Question -> Prompt mapping (Question no longer references Prompt)
 
 			// Subject -> Grade & Syllabus

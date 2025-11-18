@@ -7,6 +7,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.OpenApi.Models;
 using Microsoft.OpenApi.Any;
 using System.Text.Json.Serialization;
+using giaoanpro_backend.Domain.Enums;
 
 
 var builder = WebApplication.CreateBuilder(args);
