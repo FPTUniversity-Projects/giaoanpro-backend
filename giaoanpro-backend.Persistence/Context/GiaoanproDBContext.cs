@@ -113,10 +113,10 @@ namespace giaoanpro_backend.Persistence.Context
 				.HasForeignKey(eq => eq.QuestionId)
 				.OnDelete(DeleteBehavior.Cascade);
 
-			// QuestionAttribute relationships (use explicit collections)
+			// QuestionAttribute relationships (Question side no longer has navigation)
 			modelBuilder.Entity<QuestionAttribute>()
 				.HasOne(qa => qa.Question)
-				.WithMany(q => q.QuestionAttributes)
+				.WithMany()
 				.HasForeignKey(qa => qa.QuestionId)
 				.OnDelete(DeleteBehavior.Cascade);
 
@@ -246,11 +246,7 @@ namespace giaoanpro_backend.Persistence.Context
 				.HasForeignKey(lp => lp.SubjectId)
 				.OnDelete(DeleteBehavior.Restrict);
 
-			modelBuilder.Entity<Question>()
-				.HasOne(q => q.Prompt)
-				.WithMany(p => p.Questions)
-				.HasForeignKey(q => q.PromptId)
-				.OnDelete(DeleteBehavior.Restrict);
+			// Removed Question -> Prompt mapping (Question no longer references Prompt)
 
 			// Subject -> Grade & Syllabus
 			modelBuilder.Entity<Subject>()
@@ -279,9 +275,15 @@ namespace giaoanpro_backend.Persistence.Context
 			modelBuilder.Entity<Attempt>()
 				.Property(a => a.Status)
 				.HasConversion<string>();
-			modelBuilder.Entity<Attribute>()
-				.Property(a => a.Type)
-				.HasConversion<string>();
+			modelBuilder.Entity<Question>()
+                .Property(q => q.QuestionType)
+                .HasConversion<string>();
+            modelBuilder.Entity<Question>()
+                .Property(q => q.DifficultyLevel)
+                .HasConversion<string>();
+            modelBuilder.Entity<Question>()
+                .Property(q => q.AwarenessLevel)
+                .HasConversion<string>();
 			modelBuilder.Entity<Attribute>()
 				.Property(a => a.Value)
 				.HasConversion<string>();

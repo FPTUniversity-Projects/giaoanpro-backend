@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using giaoanpro_backend.Persistence.Context;
 
@@ -11,9 +12,11 @@ using giaoanpro_backend.Persistence.Context;
 namespace giaoanpro_backend.Persistence.Migrations
 {
     [DbContext(typeof(GiaoanproDBContext))]
-    partial class GiaoanproDBContextModelSnapshot : ModelSnapshot
+    [Migration("20251117185618_updateQuestion")]
+    partial class updateQuestion
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -159,8 +162,9 @@ namespace giaoanpro_backend.Persistence.Migrations
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime2");
 
-                    b.Property<int>("Type")
-                        .HasColumnType("int");
+                    b.Property<string>("Type")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<DateTime>("UpdatedAt")
                         .HasColumnType("datetime2");
@@ -482,29 +486,14 @@ namespace giaoanpro_backend.Persistence.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uniqueidentifier");
 
-                    b.Property<string>("AwarenessLevel")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
                     b.Property<Guid>("BankId")
                         .HasColumnType("uniqueidentifier");
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime2");
 
-                    b.Property<DateTime?>("DeletedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("DifficultyLevel")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<Guid?>("PromptLogId")
+                    b.Property<Guid>("PromptId")
                         .HasColumnType("uniqueidentifier");
-
-                    b.Property<string>("QuestionType")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("Text")
                         .IsRequired()
@@ -515,7 +504,7 @@ namespace giaoanpro_backend.Persistence.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("PromptLogId");
+                    b.HasIndex("PromptId");
 
                     b.ToTable("Questions");
                 });
@@ -1004,9 +993,13 @@ namespace giaoanpro_backend.Persistence.Migrations
 
             modelBuilder.Entity("giaoanpro_backend.Domain.Entities.Question", b =>
                 {
-                    b.HasOne("giaoanpro_backend.Domain.Entities.PromptLog", null)
+                    b.HasOne("giaoanpro_backend.Domain.Entities.PromptLog", "Prompt")
                         .WithMany("Questions")
-                        .HasForeignKey("PromptLogId");
+                        .HasForeignKey("PromptId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Prompt");
                 });
 
             modelBuilder.Entity("giaoanpro_backend.Domain.Entities.QuestionAttribute", b =>
@@ -1018,7 +1011,7 @@ namespace giaoanpro_backend.Persistence.Migrations
                         .IsRequired();
 
                     b.HasOne("giaoanpro_backend.Domain.Entities.Question", "Question")
-                        .WithMany()
+                        .WithMany("QuestionAttributes")
                         .HasForeignKey("QuestionId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
@@ -1138,6 +1131,8 @@ namespace giaoanpro_backend.Persistence.Migrations
                     b.Navigation("ExamQuestions");
 
                     b.Navigation("Options");
+
+                    b.Navigation("QuestionAttributes");
                 });
 
             modelBuilder.Entity("giaoanpro_backend.Domain.Entities.Semester", b =>
