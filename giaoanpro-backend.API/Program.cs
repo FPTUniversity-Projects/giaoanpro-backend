@@ -5,7 +5,9 @@ using giaoanpro_backend.Persistence.Context;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.OpenApi.Models;
+using Microsoft.OpenApi.Any;
 using System.Text.Json.Serialization;
+using giaoanpro_backend.Domain.Enums;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -103,6 +105,31 @@ builder.Services.AddSwaggerGen(c =>
 			},
 			new List<string>()
 		}
+	});
+
+	// Show enums as strings with allowed names
+	c.MapType<QuestionType>(() => new OpenApiSchema
+	{
+		Type = "string",
+		Enum = Enum.GetNames(typeof(QuestionType))
+			.Select(name => (IOpenApiAny)new OpenApiString(name))
+			.ToList()
+	});
+
+	c.MapType<DifficultyLevel>(() => new OpenApiSchema
+	{
+		Type = "string",
+		Enum = Enum.GetNames(typeof(DifficultyLevel))
+			.Select(name => (IOpenApiAny)new OpenApiString(name))
+			.ToList()
+	});
+
+	c.MapType<AwarenessLevel>(() => new OpenApiSchema
+	{
+		Type = "string",
+		Enum = Enum.GetNames(typeof(AwarenessLevel))
+			.Select(name => (IOpenApiAny)new OpenApiString(name))
+			.ToList()
 	});
 });
 

@@ -16,5 +16,6 @@ namespace giaoanpro_backend.Domain.Entities
 		public virtual Subject Subject { get; set; } = null!;
 		public virtual ICollection<Activity> Activities { get; set; } = new List<Activity>();
 		public virtual ICollection<ExamMatrix> ExamMatrices { get; set; } = new List<ExamMatrix>();
+		public virtual ICollection<Question> Questions { get; set; } = [];
 	}
 }
