@@ -1,6 +1,5 @@
 ﻿using giaoanpro_backend.Application.DTOs.Responses.Bases;
 using giaoanpro_backend.Application.DTOs.Responses.Payments;
-using giaoanpro_backend.Application.DTOs.Responses.VnPays;
 using giaoanpro_backend.Application.Interfaces.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -15,11 +14,13 @@ namespace giaoanpro_backend.API.Controllers
 	{
 		private readonly IPaymentService _paymentService;
 		private readonly ILogger<PaymentsController> _logger;
+		private readonly IConfiguration _configuration;
 
-		public PaymentsController(IPaymentService paymentService, ILogger<PaymentsController> logger)
+		public PaymentsController(IPaymentService paymentService, ILogger<PaymentsController> logger, IConfiguration configuration)
 		{
 			_paymentService = paymentService;
 			_logger = logger;
+			_configuration = configuration;
 		}
 
 		[HttpGet("my-history")]
@@ -48,14 +49,82 @@ namespace giaoanpro_backend.API.Controllers
 		}
 
 		[HttpGet("vnpay-return")]
-		[ProducesResponseType(typeof(BaseResponse<VnPayReturnResponse>), StatusCodes.Status200OK)]
-		[ProducesResponseType(typeof(BaseResponse<VnPayReturnResponse>), StatusCodes.Status400BadRequest)]
-		[ProducesResponseType(typeof(BaseResponse<VnPayReturnResponse>), StatusCodes.Status404NotFound)]
-		[ProducesResponseType(typeof(BaseResponse<VnPayReturnResponse>), StatusCodes.Status500InternalServerError)]
-		public async Task<ActionResult<BaseResponse<VnPayReturnResponse>>> HandleVnPayCallback()
+		public async Task<IActionResult> HandleVnPayCallback()
 		{
+			// Call service to let backend process the VNPay return (update DB, statuses, etc.)
 			var result = await _paymentService.GetVnPayReturnResponseAsync(Request.Query);
-			return HandleResponse(result);
+
+			// Get frontend base URL from configuration (fallback to localhost if missing)
+			string frontendUrl = _configuration["Front-end:webUrl"] ?? "http://localhost:3000";
+
+			// Keys to forward from VNPay query to front-end. Exclude secure hash for safety.
+			var forwardKeys = new[]
+			{
+				"vnp_Amount",
+				"vnp_BankCode",
+				"vnp_BankTranNo",
+				"vnp_CardType",
+				"vnp_OrderInfo",
+				"vnp_PayDate",
+				"vnp_ResponseCode",
+				"vnp_TmnCode",
+				"vnp_TransactionNo",
+				"vnp_TransactionStatus",
+				"vnp_TxnRef"
+			};
+
+			var qsParts = new List<string>();
+
+			// Helper to read and add query param if present
+			void TryAddQuery(string key)
+			{
+				if (Request.Query.TryGetValue(key, out var val) && !StringValues.IsNullOrEmpty(val))
+				{
+					qsParts.Add($"{key}={Uri.EscapeDataString(val.ToString())}");
+				}
+			}
+
+			foreach (var k in forwardKeys)
+			{
+				TryAddQuery(k);
+			}
+
+			// Include subscriptionId from service payload when available
+			if (result != null && result.Payload != null && result.Payload.SubscriptionId != Guid.Empty)
+			{
+				qsParts.Add($"subscriptionId={result.Payload.SubscriptionId}");
+			}
+
+			// Also add a normalized amount (divide VNPay value by 100 if numeric) for front-end convenience
+			if (Request.Query.TryGetValue("vnp_Amount", out var vnpAmt) && !StringValues.IsNullOrEmpty(vnpAmt))
+			{
+				if (long.TryParse(vnpAmt.ToString(), out var raw))
+				{
+					var display = (raw / 100m).ToString("0.##");
+					qsParts.Add($"amount={Uri.EscapeDataString(display)}");
+				}
+				else
+				{
+					qsParts.Add($"amount={Uri.EscapeDataString(vnpAmt.ToString())}");
+				}
+			}
+
+			string redirectUrl;
+			if (result!.Success)
+			{
+				// Redirect to frontend success page with important params so client can display details
+				var queryString = qsParts.Count > 0 ? "?" + string.Join("&", qsParts) : string.Empty;
+				redirectUrl = $"{frontendUrl}/payment/success{queryString}";
+			}
+			else
+			{
+				// On failure include error message and forwarded params
+				qsParts.Add($"error={Uri.EscapeDataString(result.Message ?? "Unknown error")}");
+				var queryString = "?" + string.Join("&", qsParts);
+				redirectUrl = $"{frontendUrl}/payment/failed{queryString}";
+			}
+
+			return Redirect(redirectUrl);
 		}
 
 		[HttpGet("vnpay-ipn")]
@@ -83,14 +152,11 @@ namespace giaoanpro_backend.API.Controllers
 
 			var result = await _paymentService.ProcessVnPayPaymentCallbackAsync(queryParameters);
 
-			// VNPay expects a simple plain response. Return 200 OK when processing succeeded.
-			// If needed, change the content body to match VNPay doc (some integrations expect "OK").
 			if (result.Success)
 			{
 				return Content("OK");
 			}
 
-			// Return 400 so VNPay can know processing failed.
 			return BadRequest(result.Message ?? "Failed to process IPN");
 		}
 	}

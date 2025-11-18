@@ -9,6 +9,7 @@ namespace giaoanpro_backend.Domain.Entities
 		public Guid LessonPlanId { get; set; }
 		public Guid? ParentId { get; set; }
 		public ActivityType Type { get; set; }
+		public string Title { get; set; } = string.Empty;
 		public string Objective { get; set; } = string.Empty;
 		public string Content { get; set; } = string.Empty;
 		public string Product { get; set; } = string.Empty;
