@@ -23,5 +23,11 @@
 		ISubscriptionRepository Subscriptions { get; }
 		ISubscriptionPlanRepository SubscriptionPlans { get; }
 		IPaymentRepository Payments { get; }
+		IGradeRepository Grades { get; }
+		ISemesterRepository Semesters { get; }
+		ISubjectRepository Subjects { get; }
+		ISyllabusRepository Syllabuses { get; }
+		IClassRepository Classes { get; }
+		IUserRepository Users { get; }
 	}
 }

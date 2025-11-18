@@ -8,6 +8,7 @@ namespace giaoanpro_backend.Domain.Entities
 		public Guid SubjectId { get; set; }
 		public string Name { get; set; } = string.Empty;
 		public string Description { get; set; } = string.Empty;
+		public string? PdfUrl { get; set; } // URL or file path to PDF document
 
 		// Navigation properties
 		public virtual Subject Subject { get; set; } = null!;
