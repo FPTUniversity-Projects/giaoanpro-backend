@@ -18,9 +18,11 @@ namespace giaoanpro_backend.API.Controllers
         }
 
         [HttpGet]
+        [Authorize]
         public async Task<IActionResult> GetActivities([FromQuery] GetActivitiesQuery query)
         {
-            var result = await _activityService.GetActivitiesAsync(query);
+            var userId = GetCurrentUserId();
+            var result = await _activityService.GetActivitiesAsync(query, userId);
             return HandleResponse(result);
         }
 

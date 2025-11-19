@@ -4,6 +4,7 @@ using giaoanpro_backend.Application.DTOs.Responses.Bases;
 using giaoanpro_backend.Application.Interfaces.Repositories.Bases;
 using giaoanpro_backend.Application.Interfaces.Services;
 using giaoanpro_backend.Domain.Entities;
+using giaoanpro_backend.Domain.Enums;
 using Microsoft.EntityFrameworkCore;
 using System;
 using System.Collections.Generic;
@@ -22,13 +23,61 @@ namespace giaoanpro_backend.Application.Services
             _unitOfWork = unitOfWork;
         }
 
-        public async Task<BaseResponse<PagedResult<ActivityResponse>>> GetActivitiesAsync(GetActivitiesQuery query)
+        public async Task<BaseResponse<PagedResult<ActivityResponse>>> GetActivitiesAsync(GetActivitiesQuery query, Guid userId)
         {
             try
             {
+                // Check if lesson plan exists
+                var lessonPlan = await _unitOfWork.LessonPlans.GetByConditionAsync(
+                    lp => lp.Id == query.LessonPlanId,
+                    include: q => q.Include(lp => lp.Subject)
+                        .ThenInclude(s => s.Grade)
+                );
+
+                if (lessonPlan == null)
+                {
+                    return BaseResponse<PagedResult<ActivityResponse>>.Fail("Lesson plan not found", ResponseErrorType.NotFound);
+                }
+
+                // Get the current user
+                var user = await _unitOfWork.Users.GetByIdAsync(userId);
+                if (user == null)
+                {
+                    return BaseResponse<PagedResult<ActivityResponse>>.Fail("User not found", ResponseErrorType.NotFound);
+                }
+
+                // Check permissions based on user role
+                if (user.Role == UserRole.Teacher)
+                {
+                    // Teacher must own the lesson plan
+                    if (lessonPlan.UserId != userId)
+                    {
+                        return BaseResponse<PagedResult<ActivityResponse>>.Fail(
+                            "You don't have permission to access this lesson plan", 
+                            ResponseErrorType.Forbidden);
+                    }
+                }
+                else if (user.Role == UserRole.Student)
+                {
+                    // Student must be enrolled in a class with matching grade
+                    var lessonPlanGradeId = lessonPlan.Subject.GradeId;
+                    
+                    var isEnrolledInMatchingClass = await _unitOfWork.Classes.AnyAsync(c => 
+                        c.GradeId == lessonPlanGradeId && 
+                        c.Members.Any(m => m.StudentId == userId)
+                    );
+
+                    if (!isEnrolledInMatchingClass)
+                    {
+                        return BaseResponse<PagedResult<ActivityResponse>>.Fail(
+                            "You are not enrolled in any class that matches this lesson plan's grade", 
+                            ResponseErrorType.Forbidden);
+                    }
+                }
+
                 var (activities, totalCount) = await _unitOfWork.Activities.GetPagedAsync(
                     filter: a =>
-                        (!query.LessonPlanId.HasValue || a.LessonPlanId == query.LessonPlanId.Value) &&
+                        a.LessonPlanId == query.LessonPlanId &&
                         (!query.ParentId.HasValue || a.ParentId == query.ParentId.Value),
                     include: q => q
                         .Include(a => a.LessonPlan)
