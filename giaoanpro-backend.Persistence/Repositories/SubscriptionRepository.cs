@@ -55,32 +55,35 @@ namespace giaoanpro_backend.Persistence.Repositories
 
 		public async Task<Subscription?> GetCurrentAccessByUserAsync(Guid userId)
 		{
+			// Current access is granted when subscription is Active OR user has Cancelled but the subscription hasn't ended yet.
 			return await GetByConditionAsync(s => s.UserId == userId && (s.Status == SubscriptionStatus.Active || (s.Status == SubscriptionStatus.Canceled && s.EndDate >= DateTime.UtcNow)), include: s => s.Include(s => s.Plan));
 		}
 
 		public async Task<bool> UserHasActiveSubscriptionAsync(Guid userId)
 		{
-			return await AnyAsync(s => s.UserId == userId && s.Status == SubscriptionStatus.Active);
+			// Treat Active subscriptions and Cancelled-but-not-yet-expired subscriptions as providing current access.
+			return await AnyAsync(s => s.UserId == userId && (s.Status == SubscriptionStatus.Active || (s.Status == SubscriptionStatus.Canceled && s.EndDate >= DateTime.UtcNow)));
 		}
 
 		public async Task<bool> UserHasActivePaidSubscriptionAsync(Guid userId)
 		{
-			// checks for any active subscription whose plan price > 0
-			return await AnyAsync(s => s.UserId == userId && s.Status == SubscriptionStatus.Active && s.Plan != null && s.Plan.Price > 0m);
+			// checks for any active subscription (or cancelled but not yet expired) whose plan price > 0
+			return await AnyAsync(s => s.UserId == userId && (s.Status == SubscriptionStatus.Active || (s.Status == SubscriptionStatus.Canceled && s.EndDate >= DateTime.UtcNow)) && s.Plan != null && s.Plan.Price > 0m);
 		}
 
 		public async Task<IEnumerable<Subscription>> GetActiveSubscriptionsByUserAsync(Guid userId, bool includePlan = false)
 		{
+			// Return subscriptions that are either Active or Cancelled-but-not-expired
 			if (includePlan)
 			{
 				return await GetAllAsync(
-					filter: s => s.UserId == userId && s.Status == SubscriptionStatus.Active,
+					filter: s => s.UserId == userId && (s.Status == SubscriptionStatus.Active || (s.Status == SubscriptionStatus.Canceled && s.EndDate >= DateTime.UtcNow)),
 					include: q => q.Include(s => s.Plan),
 					asNoTracking: false
 				);
 			}
 
-			return await GetAllAsync(s => s.UserId == userId && s.Status == SubscriptionStatus.Active);
+			return await GetAllAsync(s => s.UserId == userId && (s.Status == SubscriptionStatus.Active || (s.Status == SubscriptionStatus.Canceled && s.EndDate >= DateTime.UtcNow)));
 		}
 
 		public async Task<(IEnumerable<Subscription> Items, int TotalCount)> GetSubscriptionsAsync(

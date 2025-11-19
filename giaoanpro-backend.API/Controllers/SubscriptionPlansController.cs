@@ -1,6 +1,7 @@
 ﻿using giaoanpro_backend.Application.DTOs.Requests.SubscriptionPlans;
 using giaoanpro_backend.Application.DTOs.Responses.Bases;
 using giaoanpro_backend.Application.DTOs.Responses.SubscriptionPlans;
+using giaoanpro_backend.Application.DTOs.Responses.Subscriptions.Shared;
 using giaoanpro_backend.Application.Interfaces.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -24,6 +25,15 @@ namespace giaoanpro_backend.API.Controllers
 		public async Task<ActionResult<BaseResponse<PagedResult<GetSubscriptionPlanResponse>>>> GetSubscriptionPlans([FromQuery] GetSubscriptionPlansQuery query)
 		{
 			var result = await _subscriptionPlanService.GetSubscriptionPlansAsync(query);
+			return HandleResponse(result);
+		}
+
+		[HttpGet("public")]
+		[ProducesResponseType(typeof(BaseResponse<List<SubscriptionPlanDetailResponse>>), StatusCodes.Status200OK)]
+		[ProducesResponseType(typeof(BaseResponse<List<SubscriptionPlanDetailResponse>>), StatusCodes.Status500InternalServerError)]
+		public async Task<ActionResult<BaseResponse<List<SubscriptionPlanDetailResponse>>>> GetPublicSubscriptionPlans()
+		{
+			var result = await _subscriptionPlanService.GetPublicSubscriptionPlansAsync();
 			return HandleResponse(result);
 		}
 

@@ -26,5 +26,13 @@ namespace giaoanpro_backend.Application.Interfaces.Repositories.Bases
 		ISubscriptionPlanRepository SubscriptionPlans { get; }
 		IPaymentRepository Payments { get; }
 		IExamRepository Exams { get; }
-	}
+		IGradeRepository Grades { get; }
+		ISemesterRepository Semesters { get; }
+		ISubjectRepository Subjects { get; }
+		ISyllabusRepository Syllabuses { get; }
+		IClassRepository Classes { get; }
+		IUserRepository Users { get; }
+        ILessonPlanRepository LessonPlans { get; }
+        IActivityRepository Activities { get; }
+    }
 }

@@ -73,11 +73,6 @@ namespace giaoanpro_backend.Application.Services
 				return BaseResponse<VnPayReturnResponse>.Fail("Invalid VNPay response.", ResponseErrorType.BadRequest);
 			}
 
-			if (vnPayResponse.IsSuccess == false)
-			{
-				return BaseResponse<VnPayReturnResponse>.Fail("VNPay payment failed: " + vnPayResponse.Message, ResponseErrorType.BadRequest);
-			}
-
 			var payment = await _unitOfWork.Payments.GetByIdAsync(vnPayResponse.PaymentId);
 			if (payment == null)
 			{
@@ -92,7 +87,18 @@ namespace giaoanpro_backend.Application.Services
 				SubscriptionId = subscriptionId
 			};
 
-			return BaseResponse<VnPayReturnResponse>.Ok(payload);
+			if (vnPayResponse.IsSuccess == false)
+			{
+				return new BaseResponse<VnPayReturnResponse>
+				{
+					Success = false,
+					Message = "VNPay payment failed: " + vnPayResponse.Message,
+					ErrorType = ResponseErrorType.BadRequest,
+					Payload = payload
+				};
+			}
+
+			return BaseResponse<VnPayReturnResponse>.Ok(payload, "VNPay payment processed successfully.");
 		}
 
 		public async Task<BaseResponse<bool>> ProcessVnPayPaymentCallbackAsync(IQueryCollection queryParameters)
@@ -147,7 +153,7 @@ namespace giaoanpro_backend.Application.Services
 						if (old.Id == subscription.Id) continue; // skip the newly activated subscription
 						if (old.Plan != null && old.Plan.Price <= 0m)
 						{
-							old.Status = SubscriptionStatus.Canceled;
+							old.Status = SubscriptionStatus.Terminated;
 							old.EndDate = DateTime.UtcNow;
 							_unitOfWork.Subscriptions.Update(old);
 						}

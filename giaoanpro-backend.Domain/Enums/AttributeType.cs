@@ -2,7 +2,7 @@
 {
 	public enum AttributeType
 	{
-		QuestionType,
+		QuestionType = 1,
 		DifficultyLevel,
 		AwarenessLevel
 	}

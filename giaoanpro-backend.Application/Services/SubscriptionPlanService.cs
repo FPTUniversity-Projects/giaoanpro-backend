@@ -2,6 +2,7 @@
 using giaoanpro_backend.Application.DTOs.Requests.SubscriptionPlans;
 using giaoanpro_backend.Application.DTOs.Responses.Bases;
 using giaoanpro_backend.Application.DTOs.Responses.SubscriptionPlans;
+using giaoanpro_backend.Application.DTOs.Responses.Subscriptions.Shared;
 using giaoanpro_backend.Application.Interfaces.Repositories;
 using giaoanpro_backend.Application.Interfaces.Services;
 using giaoanpro_backend.Domain.Entities;
@@ -148,6 +149,13 @@ namespace giaoanpro_backend.Application.Services
 			return BaseResponse<List<SubscriptionPlanLookupResponse>>.Ok(
 				_mapper.Map<List<SubscriptionPlanLookupResponse>>(plans),
 				"Subscription plan admin lookups retrieved successfully.");
+		}
+
+		public async Task<BaseResponse<List<SubscriptionPlanDetailResponse>>> GetPublicSubscriptionPlansAsync()
+		{
+			var plans = await _repository.GetSubscriptionPlansAsync(onlyActive: true);
+			var mapped = _mapper.Map<List<SubscriptionPlanDetailResponse>>(plans);
+			return BaseResponse<List<SubscriptionPlanDetailResponse>>.Ok(mapped, "Public subscription plans retrieved successfully.");
 		}
 	}
 }

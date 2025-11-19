@@ -1,6 +1,7 @@
 ﻿using giaoanpro_backend.Application.DTOs.Requests.SubscriptionPlans;
 using giaoanpro_backend.Application.DTOs.Responses.Bases;
 using giaoanpro_backend.Application.DTOs.Responses.SubscriptionPlans;
+using giaoanpro_backend.Application.DTOs.Responses.Subscriptions.Shared;
 
 namespace giaoanpro_backend.Application.Interfaces.Services
 {
@@ -13,5 +14,6 @@ namespace giaoanpro_backend.Application.Interfaces.Services
 		public Task<BaseResponse<string>> CreateSubscriptionPlanAsync(CreateSubscriptionPlanRequest request);
 		public Task<BaseResponse<string>> UpdateSubscriptionPlanAsync(Guid id, UpdateSubscriptionPlanRequest request);
 		public Task<BaseResponse<string>> DeleteSubscriptionPlanAsync(Guid id);
+		public Task<BaseResponse<List<SubscriptionPlanDetailResponse>>> GetPublicSubscriptionPlansAsync();
 	}
 }

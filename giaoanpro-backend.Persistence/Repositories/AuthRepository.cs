@@ -20,6 +20,7 @@ namespace giaoanpro_backend.Persistence.Repositories
 		private readonly string _secretKey;
 		private readonly string _issuer;
 		private readonly string _audience;
+		private readonly int _expiryMinutes;
 
 		public AuthRepository(IUserRepository userRepository, IConfiguration configuration, ILogger<AuthRepository> logger)
 		{
@@ -32,12 +33,15 @@ namespace giaoanpro_backend.Persistence.Repositories
 				?? throw new ArgumentNullException("Authentication:Issuer not found in configuration");
 			_audience = _configuration["Authentication:Audience"]
 				?? throw new ArgumentNullException("Authentication:Audience not found in configuration");
+			_expiryMinutes = int.TryParse(configuration["Authentication:ExpiryInMinutes"], out var minutes)
+				? minutes
+				: throw new ArgumentNullException("Authentication:ExpiryInMinutes not found or invalid");
 		}
 
 		public string GenerateJwtToken(User user, string role)
 		{
 			if (user == null) throw new ArgumentNullException(nameof(user));
-			if (string.IsNullOrWhiteSpace(role)) role = "User";
+			if (string.IsNullOrWhiteSpace(role)) role = UserRole.Student.ToString();
 
 			var claims = new List<Claim>
 			{
@@ -56,7 +60,7 @@ namespace giaoanpro_backend.Persistence.Repositories
 				audience: _audience,
 				claims: claims,
 				notBefore: DateTime.UtcNow,
-				expires: DateTime.UtcNow.AddHours(8),
+				expires: DateTime.UtcNow.AddMinutes(_expiryMinutes),
 				signingCredentials: creds
 			);
 
@@ -157,6 +161,73 @@ namespace giaoanpro_backend.Persistence.Repositories
 			}
 
 			return new string(arr);
+		}
+
+		public async Task<string> GenerateAndSaveRefreshToken(User user)
+		{
+			if (user == null) throw new ArgumentNullException(nameof(user));
+
+			var refreshToken = GenerateRefreshToken();
+			user.RefreshToken = refreshToken;
+			user.RefreshTokenExpiryTime = DateTime.UtcNow.AddDays(7);
+
+			// Ensure repository tracks update
+			_userRepository.Update(user);
+			var saved = await _userRepository.SaveChangesAsync();
+			if (!saved)
+			{
+				_logger.LogWarning("Failed to save refresh token for user {UserId}", user.Id);
+				// still return the token but caller should be aware persistence failed
+			}
+
+			return refreshToken;
+		}
+
+		public async Task<User?> ValidateRefreshToken(Guid userId, string refreshToken)
+		{
+			if (userId == Guid.Empty || string.IsNullOrWhiteSpace(refreshToken)) return null;
+			var user = await _userRepository.GetByIdAsync(userId);
+			if (user == null) return null;
+			if (string.IsNullOrWhiteSpace(user.RefreshToken)) return null;
+			if (!string.Equals(user.RefreshToken, refreshToken, StringComparison.Ordinal)) return null;
+			if (!user.RefreshTokenExpiryTime.HasValue || user.RefreshTokenExpiryTime.Value < DateTime.UtcNow) return null;
+			return user;
+		}
+
+		private string GenerateRefreshToken()
+		{
+			var randomNumber = new byte[32];
+			using (var rng = RandomNumberGenerator.Create())
+			{
+				rng.GetBytes(randomNumber);
+			}
+			return Convert.ToBase64String(randomNumber);
+		}
+
+		// Revoke a user's refresh token by clearing the stored token and expiry, then persisting the change.
+		public async Task<bool> RevokeRefreshToken(Guid userId)
+		{
+			if (userId == Guid.Empty) return false;
+
+			var user = await _userRepository.GetByIdAsync(userId);
+			if (user == null)
+			{
+				_logger.LogWarning("Attempted to revoke refresh token for non-existent user {UserId}", userId);
+				return false;
+			}
+
+			user.RefreshToken = string.Empty;
+			user.RefreshTokenExpiryTime = null;
+			_userRepository.Update(user);
+			var saved = await _userRepository.SaveChangesAsync();
+			if (!saved)
+			{
+				_logger.LogWarning("Failed to persist revoked refresh token for user {UserId}", userId);
+				return false;
+			}
+
+			_logger.LogInformation("Revoked refresh token for user {UserId}", userId);
+			return true;
 		}
 	}
 }

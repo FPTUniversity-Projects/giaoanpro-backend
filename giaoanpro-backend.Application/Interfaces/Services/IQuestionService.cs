@@ -12,5 +12,6 @@ namespace giaoanpro_backend.Application.Interfaces.Services
 		Task<BaseResponse<string>> UpdateQuestionAsync(Guid id, UpdateQuestionRequest request);
 		Task<BaseResponse<string>> DeleteQuestionAsync(Guid id);
 		Task<BaseResponse<List<string>>> CreateQuestionsBulkAsync(List<CreateQuestionRequest> requests);
+		Task<BaseResponse<List<GetQuestionResponse>>> GenerateQuestionsAiAsync(GenerateQuestionsRequest request);
 	}
 }
