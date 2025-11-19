@@ -5,6 +5,7 @@ namespace giaoanpro_backend.Application.DTOs.Responses.Auths
 	public class TokenResponse
 	{
 		public required string AccessToken { get; set; }
+		public required string RefreshToken { get; set; }
 		public UserRole Role { get; set; }
 	}
 }
