@@ -1,4 +1,6 @@
-﻿namespace giaoanpro_backend.Application.Interfaces.Repositories.Bases
+﻿using giaoanpro_backend.Application.Interfaces.Repositories;
+
+namespace giaoanpro_backend.Application.Interfaces.Repositories.Bases
 {
 	public interface IUnitOfWork : IDisposable, IAsyncDisposable
 	{
@@ -23,6 +25,7 @@
 		ISubscriptionRepository Subscriptions { get; }
 		ISubscriptionPlanRepository SubscriptionPlans { get; }
 		IPaymentRepository Payments { get; }
+		IExamRepository Exams { get; }
 		IGradeRepository Grades { get; }
 		ISemesterRepository Semesters { get; }
 		ISubjectRepository Subjects { get; }
