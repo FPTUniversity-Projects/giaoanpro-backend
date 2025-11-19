@@ -11,7 +11,35 @@ namespace giaoanpro_backend.Persistence.Repositories.Bases
 		private readonly Dictionary<Type, object> _repositories = new();
 		private IDbContextTransaction? _transaction;
 
-		public ISubscriptionRepository Subscriptions
+        public ILessonPlanRepository LessonPlans
+        {
+            get
+            {
+                var key = typeof(ILessonPlanRepository);
+                if (!_repositories.TryGetValue(key, out var repo))
+                {
+                    repo = new LessonPlanRepository(_context);
+                    _repositories[key] = repo!;
+                }
+                return (ILessonPlanRepository)repo!;
+            }
+        }
+
+        public IActivityRepository Activities
+        {
+            get
+            {
+                var key = typeof(IActivityRepository);
+                if (!_repositories.TryGetValue(key, out var repo))
+                {
+                    repo = new ActivityRepository(_context);
+                    _repositories[key] = repo!;
+                }
+                return (IActivityRepository)repo!;
+            }
+        }
+
+        public ISubscriptionRepository Subscriptions
 		{
 			get
 			{
