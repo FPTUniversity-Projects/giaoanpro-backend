@@ -54,6 +54,11 @@ namespace giaoanpro_backend.API.Controllers
 		[Authorize(Roles = "Admin")]
 		public async Task<ActionResult<BaseResponse<GetUserResponse>>> UpdateUserStatus([FromRoute] Guid id, [FromBody] bool isActive)
 		{
+			var adminId = GetCurrentUserId();
+			if (adminId == id)
+			{
+				return HandleResponse(BaseResponse<GetUserResponse>.Fail("Admin cannot change their own status.", ResponseErrorType.Forbidden));
+			}
 			var response = await _userServcie.UpdateUserStatusAsync(id, isActive);
 			return HandleResponse(response);
 		}
