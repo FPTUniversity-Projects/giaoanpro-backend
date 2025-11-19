@@ -2,11 +2,11 @@
 
 namespace giaoanpro_backend.Domain.Entities
 {
-	public class Exam : AuditableEntity
-	{
+	public class Exam : AuditableEntity, ISoftDeleteEntity
+    {
 		public Guid Id { get; set; }
-		public Guid MatrixId { get; set; }
-		public Guid ActivityId { get; set; }
+		public Guid? MatrixId { get; set; }
+		public Guid? ActivityId { get; set; }
 		public Guid CreatorId { get; set; }
 		public string Title { get; set; } = string.Empty;
 		public string Description { get; set; } = string.Empty;
@@ -17,5 +17,6 @@ namespace giaoanpro_backend.Domain.Entities
 		public virtual Activity Activity { get; set; } = null!;
 		public virtual User Creator { get; set; } = null!;
 		public virtual ICollection<ExamQuestion> ExamQuestions { get; set; } = new List<ExamQuestion>();
-	}
+        public DateTime? DeletedAt { get; set; }
+    }
 }
