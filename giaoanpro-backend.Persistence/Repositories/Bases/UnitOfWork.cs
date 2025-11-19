@@ -164,8 +164,21 @@ namespace giaoanpro_backend.Persistence.Repositories.Bases
 				return (IUserRepository)repo!;
 			}
 		}
+        public IExamRepository Exams
+        {
+            get
+            {
+                var key = typeof(IExamRepository);
+                if (!_repositories.TryGetValue(key, out var repo))
+                {
+                    repo = new ExamRepository(_context);
+                    _repositories[key] = repo!;
+                }
+                return (IExamRepository)repo!;
+            }
+        }
 
-		public UnitOfWork(GiaoanproDBContext context)
+        public UnitOfWork(GiaoanproDBContext context)
 		{
 			_context = context ?? throw new ArgumentNullException(nameof(context));
 		}
