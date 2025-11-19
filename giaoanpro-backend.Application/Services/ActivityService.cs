@@ -322,6 +322,8 @@ namespace giaoanpro_backend.Application.Services
                     a => a.Id == id,
                     include: q => q.Include(a => a.LessonPlan)
                         .Include(a => a.Exams)
+                        .Include(a => a.Children)
+                            .ThenInclude(c => c.Exams)
                 );
 
 				if (activity == null)
@@ -345,15 +347,83 @@ namespace giaoanpro_backend.Application.Services
                         ResponseErrorType.Conflict);
                 }
 
+                // Check if any child activities (recursively) have exams
+                if (activity.Children != null && activity.Children.Any())
+                {
+                    var hasExamsInChildren = await CheckChildrenForExamsRecursivelyAsync(activity.Id);
+                    if (hasExamsInChildren)
+                    {
+                        return BaseResponse.Fail(
+                            "Cannot delete activity because one or more child activities have associated exams", 
+                            ResponseErrorType.Conflict);
+                    }
+
+                    // If no exams found, delete all children recursively
+                    await DeleteChildrenRecursivelyAsync(activity.Id);
+                }
+
+                // Finally, delete the parent activity
                 _unitOfWork.Activities.Remove(activity);
                 await _unitOfWork.SaveChangesAsync();
 
-				return BaseResponse.Ok("Activity deleted successfully");
-			}
-			catch (Exception ex)
+                return BaseResponse.Ok("Activity and all child activities deleted successfully");
+            }
+            catch (Exception ex)
+            {
+                return BaseResponse.Fail($"Error deleting activity: {ex.Message}", ResponseErrorType.InternalError);
+            }
+        }
+
+		/// <summary>
+		/// Recursively checks if any child activities (or their descendants) have exams
+		/// </summary>
+		private async Task<bool> CheckChildrenForExamsRecursivelyAsync(Guid parentId)
+		{
+			var children = await _unitOfWork.Activities.GetAllAsync(
+				filter: a => a.ParentId == parentId,
+				include: q => q.Include(a => a.Exams),
+				asNoTracking: true
+			);
+
+			foreach (var child in children)
 			{
-				return BaseResponse.Fail($"Error deleting activity: {ex.Message}", ResponseErrorType.InternalError);
+				// Check if this child has exams
+				if (child.Exams != null && child.Exams.Any())
+				{
+					return true;
+				}
+
+				// Recursively check this child's children
+				if (await CheckChildrenForExamsRecursivelyAsync(child.Id))
+				{
+					return true;
+				}
 			}
+
+			return false;
+		}
+
+		/// <summary>
+		/// Recursively deletes all child activities (depth-first to avoid FK constraint issues)
+		/// </summary>
+		private async Task DeleteChildrenRecursivelyAsync(Guid parentId)
+		{
+			var children = await _unitOfWork.Activities.GetAllAsync(
+				filter: a => a.ParentId == parentId,
+				asNoTracking: false // Need tracking for deletion
+			);
+
+			foreach (var child in children)
+			{
+				// First, recursively delete this child's children
+				await DeleteChildrenRecursivelyAsync(child.Id);
+
+				// Then delete this child
+				_unitOfWork.Activities.Remove(child);
+			}
+
+			// Save changes for this level
+			await _unitOfWork.SaveChangesAsync();
 		}
 	}
 }
