@@ -1,11 +1,13 @@
 using giaoanpro_backend.Application.DTOs.Requests.Questions;
 using giaoanpro_backend.Application.Interfaces.Services;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace giaoanpro_backend.API.Controllers
 {
 	[Route("api/[controller]")]
 	[ApiController]
+	[Authorize("Teacher")]
 	public class QuestionsController : ControllerBase
 	{
 		private readonly IQuestionService _questionService;

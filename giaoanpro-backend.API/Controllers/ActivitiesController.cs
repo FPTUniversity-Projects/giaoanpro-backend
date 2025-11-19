@@ -31,7 +31,7 @@ namespace giaoanpro_backend.API.Controllers
 		}
 
 		[HttpPost]
-		//[Authorize(Roles = "Teacher")]
+		[Authorize(Roles = "Teacher")]
 		public async Task<IActionResult> CreateActivity([FromBody] CreateActivityRequest request)
 		{
 			var validation = ValidateRequestBody(request);
