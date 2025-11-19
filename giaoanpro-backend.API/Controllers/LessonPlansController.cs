@@ -19,9 +19,11 @@ namespace giaoanpro_backend.API.Controllers
 
 
         [HttpGet]
+        [Authorize]
         public async Task<IActionResult> GetLessonPlans([FromQuery] GetLessonPlansQuery query)
         {
-            var result = await _lessonPlanService.GetLessonPlansAsync(query);
+            var userId = GetCurrentUserId();
+            var result = await _lessonPlanService.GetLessonPlansAsync(query, userId);
             return HandleResponse(result);
         }
 

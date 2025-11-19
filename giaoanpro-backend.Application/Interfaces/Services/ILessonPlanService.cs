@@ -11,7 +11,7 @@ namespace giaoanpro_backend.Application.Interfaces.Services
 {
     public interface ILessonPlanService
     {
-        Task<BaseResponse<PagedResult<LessonPlanResponse>>> GetLessonPlansAsync(GetLessonPlansQuery query);
+        Task<BaseResponse<PagedResult<LessonPlanResponse>>> GetLessonPlansAsync(GetLessonPlansQuery query, Guid userId);
         Task<BaseResponse<LessonPlanResponse>> GetLessonPlanByIdAsync(Guid id);
         Task<BaseResponse<LessonPlanResponse>> CreateLessonPlanAsync(CreateLessonPlanRequest request, Guid userId);
         Task<BaseResponse<LessonPlanResponse>> UpdateLessonPlanAsync(Guid id, UpdateLessonPlanRequest request, Guid userId);

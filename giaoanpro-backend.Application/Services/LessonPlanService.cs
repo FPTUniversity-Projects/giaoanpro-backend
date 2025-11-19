@@ -23,17 +23,62 @@ namespace giaoanpro_backend.Application.Services
             _unitOfWork = unitOfWork;
         }
 
-        public async Task<BaseResponse<PagedResult<LessonPlanResponse>>> GetLessonPlansAsync(GetLessonPlansQuery query)
+        public async Task<BaseResponse<PagedResult<LessonPlanResponse>>> GetLessonPlansAsync(GetLessonPlansQuery query, Guid userId)
         {
             try
             {
+                // Check if class exists
+                var classEntity = await _unitOfWork.Classes.GetByConditionAsync(
+                    c => c.Id == query.ClassId,
+                    include: q => q.Include(c => c.Grade).Include(c => c.Members)
+                );
+
+                if (classEntity == null)
+                {
+                    return BaseResponse<PagedResult<LessonPlanResponse>>.Fail("Class not found", ResponseErrorType.NotFound);
+                }
+
+                // Get the current user
+                var user = await _unitOfWork.Users.GetByIdAsync(userId);
+                if (user == null)
+                {
+                    return BaseResponse<PagedResult<LessonPlanResponse>>.Fail("User not found", ResponseErrorType.NotFound);
+                }
+
+                // Check if student is enrolled in the class
+                if (user.Role == UserRole.Student)
+                {
+                    var isEnrolled = classEntity.Members.Any(m => m.StudentId == userId);
+                    if (!isEnrolled)
+                    {
+                        return BaseResponse<PagedResult<LessonPlanResponse>>.Fail(
+                            "You are not enrolled in this class", 
+                            ResponseErrorType.Forbidden);
+                    }
+                }
+                // Check if teacher is the teacher of the class
+                else if (user.Role == UserRole.Teacher)
+                {
+                    if (classEntity.TeacherId != userId)
+                    {
+                        return BaseResponse<PagedResult<LessonPlanResponse>>.Fail(
+                            "You are not the teacher of this class", 
+                            ResponseErrorType.Forbidden);
+                    }
+                }
+
+                // Get the grade ID from the class
+                var classGradeId = classEntity.GradeId;
+
                 var (lessonPlans, totalCount) = await _unitOfWork.LessonPlans.GetPagedAsync(
                     filter: lp =>
+                        lp.Subject.GradeId == classGradeId &&
                         (string.IsNullOrEmpty(query.Title) || lp.Title.ToLower().Contains(query.Title.ToLower())) &&
                         (!query.SubjectId.HasValue || lp.SubjectId == query.SubjectId.Value) &&
                         (!query.UserId.HasValue || lp.UserId == query.UserId.Value),
                     include: q => q
                         .Include(lp => lp.Subject)
+                            .ThenInclude(s => s.Grade)
                         .Include(lp => lp.User)
                         .Include(lp => lp.Activities),
                     orderBy: q => q.OrderByDescending(lp => lp.CreatedAt),
