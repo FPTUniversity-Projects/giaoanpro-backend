@@ -221,15 +221,26 @@ namespace giaoanpro_backend.Application.Services
             }
         }
 
-        public async Task<BaseResponse<ActivityResponse>> UpdateActivityAsync(Guid id, UpdateActivityRequest request)
+        public async Task<BaseResponse<ActivityResponse>> UpdateActivityAsync(Guid id, UpdateActivityRequest request, Guid userId)
         {
             try
             {
-                var activity = await _unitOfWork.Activities.GetByIdAsync(id);
+                var activity = await _unitOfWork.Activities.GetByConditionAsync(
+                    a => a.Id == id,
+                    include: q => q.Include(a => a.LessonPlan)
+                );
 
                 if (activity == null)
                 {
                     return BaseResponse<ActivityResponse>.Fail("Activity not found", ResponseErrorType.NotFound);
+                }
+
+                // Check if the user is the owner of the lesson plan
+                if (activity.LessonPlan.UserId != userId)
+                {
+                    return BaseResponse<ActivityResponse>.Fail(
+                        "You don't have permission to update this activity", 
+                        ResponseErrorType.Forbidden);
                 }
 
                 // Check if lesson plan exists
@@ -237,6 +248,14 @@ namespace giaoanpro_backend.Application.Services
                 if (lessonPlan == null)
                 {
                     return BaseResponse<ActivityResponse>.Fail("Lesson plan not found", ResponseErrorType.NotFound);
+                }
+
+                // Check if new lesson plan belongs to the same user
+                if (lessonPlan.UserId != userId)
+                {
+                    return BaseResponse<ActivityResponse>.Fail(
+                        "You don't have permission to move this activity to another teacher's lesson plan", 
+                        ResponseErrorType.Forbidden);
                 }
 
                 // Check if parent activity exists (if ParentId is provided)
@@ -300,15 +319,35 @@ namespace giaoanpro_backend.Application.Services
             }
         }
 
-        public async Task<BaseResponse> DeleteActivityAsync(Guid id)
+        public async Task<BaseResponse> DeleteActivityAsync(Guid id, Guid userId)
         {
             try
             {
-                var activity = await _unitOfWork.Activities.GetByIdAsync(id);
+                var activity = await _unitOfWork.Activities.GetByConditionAsync(
+                    a => a.Id == id,
+                    include: q => q.Include(a => a.LessonPlan)
+                        .Include(a => a.Exams)
+                );
 
                 if (activity == null)
                 {
                     return BaseResponse.Fail("Activity not found", ResponseErrorType.NotFound);
+                }
+
+                // Check if the user is the owner of the lesson plan
+                if (activity.LessonPlan.UserId != userId)
+                {
+                    return BaseResponse.Fail(
+                        "You don't have permission to delete this activity", 
+                        ResponseErrorType.Forbidden);
+                }
+
+                // Check if activity has any exams
+                if (activity.Exams != null && activity.Exams.Any())
+                {
+                    return BaseResponse.Fail(
+                        "Cannot delete activity because it has associated exams", 
+                        ResponseErrorType.Conflict);
                 }
 
                 _unitOfWork.Activities.Remove(activity);

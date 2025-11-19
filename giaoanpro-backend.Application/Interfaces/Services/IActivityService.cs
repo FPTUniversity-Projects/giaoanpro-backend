@@ -14,7 +14,7 @@ namespace giaoanpro_backend.Application.Interfaces.Services
         Task<BaseResponse<PagedResult<ActivityResponse>>> GetActivitiesAsync(GetActivitiesQuery query, Guid userId);
         Task<BaseResponse<ActivityResponse>> GetActivityByIdAsync(Guid id);
         Task<BaseResponse<ActivityResponse>> CreateActivityAsync(CreateActivityRequest request);
-        Task<BaseResponse<ActivityResponse>> UpdateActivityAsync(Guid id, UpdateActivityRequest request);
-        Task<BaseResponse> DeleteActivityAsync(Guid id);
+        Task<BaseResponse<ActivityResponse>> UpdateActivityAsync(Guid id, UpdateActivityRequest request, Guid userId);
+        Task<BaseResponse> DeleteActivityAsync(Guid id, Guid userId);
     }
 }

@@ -51,7 +51,8 @@ namespace giaoanpro_backend.API.Controllers
             var validation = ValidateRequestBody(request);
             if (validation != null) return validation;
 
-            var result = await _activityService.UpdateActivityAsync(id, request);
+            var userId = GetCurrentUserId();
+            var result = await _activityService.UpdateActivityAsync(id, request, userId);
             return HandleResponse(result);
         }
 
@@ -59,7 +60,8 @@ namespace giaoanpro_backend.API.Controllers
         [Authorize(Roles = "Teacher")]
         public async Task<IActionResult> DeleteActivity(Guid id)
         {
-            var result = await _activityService.DeleteActivityAsync(id);
+            var userId = GetCurrentUserId();
+            var result = await _activityService.DeleteActivityAsync(id, userId);
             return HandleResponse(result);
         }
     }
