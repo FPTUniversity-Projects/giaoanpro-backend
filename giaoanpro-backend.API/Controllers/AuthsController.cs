@@ -102,7 +102,7 @@ namespace giaoanpro_backend.API.Controllers
 		}
 
 		[HttpPost("refresh-token")]
-		[AllowAnonymous]
+		[Authorize]
 		public async Task<ActionResult<BaseResponse<TokenResponse>>> RefreshToken([FromBody] RefreshTokenRequest request)
 		{
 			var validation = ValidateRequestBody<TokenResponse>(request);
@@ -110,7 +110,8 @@ namespace giaoanpro_backend.API.Controllers
 			{
 				return validation;
 			}
-			var result = await _authService.RefreshTokenAsync(request);
+			var userId = GetCurrentUserId();
+			var result = await _authService.RefreshTokenAsync(userId, request);
 			return HandleResponse(result);
 		}
 

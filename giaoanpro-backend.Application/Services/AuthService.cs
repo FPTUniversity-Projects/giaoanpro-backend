@@ -8,8 +8,6 @@ using giaoanpro_backend.Domain.Enums;
 using Google.Apis.Auth;
 using System.Security.Cryptography;
 using System.Text;
-using System;
-using System.Threading.Tasks;
 
 namespace giaoanpro_backend.Application.Services
 {
@@ -147,12 +145,12 @@ namespace giaoanpro_backend.Application.Services
 			return Convert.ToBase64String(hash);
 		}
 
-		public async Task<BaseResponse<TokenResponse>> RefreshTokenAsync(RefreshTokenRequest request)
+		public async Task<BaseResponse<TokenResponse>> RefreshTokenAsync(Guid userId, RefreshTokenRequest request)
 		{
-			if (request is null || request.UserId == Guid.Empty || string.IsNullOrWhiteSpace(request.RefreshToken))
+			if (request is null || userId == Guid.Empty || string.IsNullOrWhiteSpace(request.RefreshToken))
 				return BaseResponse<TokenResponse>.Fail("Invalid refresh token request", ResponseErrorType.BadRequest);
 
-			var user = await _authRepository.ValidateRefreshToken(request.UserId, request.RefreshToken);
+			var user = await _authRepository.ValidateRefreshToken(userId, request.RefreshToken);
 			if (user == null)
 				return BaseResponse<TokenResponse>.Fail("Invalid refresh token", ResponseErrorType.Unauthorized);
 
