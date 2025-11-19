@@ -29,33 +29,32 @@ namespace giaoanpro_backend.Infrastructure._3PServices
 
             // Lời nhắc sinh câu hỏi bằng tiếng Việt, bám sát nội dung LessonPlan đã join (context)
             var prompt = $@"
-                            Bạn là chuyên gia tạo câu hỏi Ngữ văn bằng tiếng Việt.
-                            Hãy dựa TRỰC TIẾP vào nội dung KẾ HOẠCH BÀI DẠY và CÁC HOẠT ĐỘNG dưới đây để tạo {count} câu hỏi trắc nghiệm về NGỮ VĂN (không được ngoài phạm vi nội dung):
+                Bạn là chuyên gia tạo câu hỏi Ngữ văn bằng tiếng Việt.
+                Hãy dựa TRỰC TIẾP vào nội dung KẾ HOẠCH BÀI DẠY và CÁC HOẠT ĐỘNG dưới đây để tạo {count} câu hỏi trắc nghiệm về NGỮ VĂN (không được ngoài phạm vi nội dung):
+                Nội dung kế hoạch bài dạy và hoạt động:
+                {context}
+                Yêu cầu cho mỗi câu hỏi:
+                - QuestionType: {spec.QuestionType}
+                - DifficultyLevel: {spec.DifficultyLevel}
+                - AwarenessLevel (Bloom): {spec.AwarenessLevel}
+                - Văn phong, từ ngữ và đáp án đều phải bằng TIẾNG VIỆT, phù hợp học sinh phổ thông.
+                - Mỗi câu hỏi phải có 4 phương án trả lời.
+                - CHỈ có đúng 1 đáp án isCorrect=true.
 
-                            Nội dung kế hoạch bài dạy và hoạt động:
-                            {context}
+                CHỈ TRẢ VỀ JSON THUẦN (không giải thích gì thêm) theo đúng cấu trúc sau:
 
-                            Yêu cầu cho mỗi câu hỏi:
-                            - QuestionType: {spec.QuestionType}
-                            - DifficultyLevel: {spec.DifficultyLevel}
-                            - AwarenessLevel (Bloom): {spec.AwarenessLevel}
-                            - Văn phong, từ ngữ và đáp án đều phải bằng TIẾNG VIỆT, phù hợp học sinh phổ thông.
-                            - Mỗi câu hỏi phải có 4 phương án trả lời.
-                            - Nếu là dạng chọn một thì CHỈ có đúng 1 đáp án isCorrect=true.
+                {{
+                  ""questions"": [
+                    {{
+                      ""text"": ""string"",
+                      ""options"": [
+                        {{ ""text"": ""string"", ""isCorrect"": true }},
+                        {{ ""text"": ""string"", ""isCorrect"": false }}
+                      ]
+                    }}
+                  ]
+                }}";
 
-                            CHỈ TRẢ VỀ JSON THUẦN (không giải thích gì thêm) theo đúng cấu trúc sau:
-
-                            {{
-                              ""questions"": [
-                                {{
-                                  ""text"": ""string"",
-                                  ""options"": [
-                                    {{ ""text"": ""string"", ""isCorrect"": true }},
-                                    {{ ""text"": ""string"", ""isCorrect"": false }}
-                                  ]
-                                }}
-                              ]
-                            }}";
             var payload = new
             {
                 contents = new[]
@@ -67,7 +66,7 @@ namespace giaoanpro_backend.Infrastructure._3PServices
                 }
             };
 
-            var url = $"https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key={apiKey}";
+            var url = $"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key={apiKey}";
             var client = _httpClientFactory.CreateClient();
             client.Timeout = TimeSpan.FromSeconds(60);
             using var req = new HttpRequestMessage(HttpMethod.Post, url)
@@ -94,7 +93,17 @@ namespace giaoanpro_backend.Infrastructure._3PServices
             var text = partsEl[0].GetProperty("text").GetString();
             if (string.IsNullOrWhiteSpace(text))
                 throw new InvalidOperationException("Gemini returned empty content.");
-            return text!;
+
+            var jsonStart = text.IndexOf('{');
+            var jsonEnd = text.LastIndexOf('}');
+
+            if (jsonStart == -1 || jsonEnd == -1 || jsonEnd < jsonStart)
+            {
+                throw new InvalidOperationException("Gemini response did not contain valid JSON.");
+            }
+
+            var jsonContent = text.Substring(jsonStart, jsonEnd - jsonStart + 1);
+            return jsonContent;
         }
     }
 }

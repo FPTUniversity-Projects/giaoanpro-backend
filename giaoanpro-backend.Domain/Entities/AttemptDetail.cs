@@ -2,7 +2,7 @@
 
 namespace giaoanpro_backend.Domain.Entities
 {
-	public class AttemptDetail : AuditableEntity
+	public class AttemptDetail : AuditableEntity, ISoftDeleteEntity
 	{
 		public Guid Id { get; set; }
 		public Guid AttemptId { get; set; }
@@ -15,5 +15,8 @@ namespace giaoanpro_backend.Domain.Entities
 		// Navigation properties
 		public virtual Attempt Attempt { get; set; } = null!;
 		public virtual Question Question { get; set; } = null!;
+
+		// ISoftDeleteEntity implementation
+		public DateTime? DeletedAt { get; set; }
 	}
 }

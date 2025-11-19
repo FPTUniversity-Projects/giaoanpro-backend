@@ -100,5 +100,32 @@ namespace giaoanpro_backend.API.Controllers
 
 			return HandleResponse(result);
 		}
+
+		[HttpPost("refresh-token")]
+		[Authorize]
+		public async Task<ActionResult<BaseResponse<TokenResponse>>> RefreshToken([FromBody] RefreshTokenRequest request)
+		{
+			var validation = ValidateRequestBody<TokenResponse>(request);
+			if (validation != null)
+			{
+				return validation;
+			}
+			var userId = GetCurrentUserId();
+			var result = await _authService.RefreshTokenAsync(userId, request);
+			return HandleResponse(result);
+		}
+
+		// Logout: revoke refresh token for current user
+		[HttpPost("logout")]
+		[Authorize]
+		[ProducesResponseType(typeof(BaseResponse<string>), StatusCodes.Status200OK)]
+		[ProducesResponseType(typeof(BaseResponse<string>), StatusCodes.Status400BadRequest)]
+		[ProducesResponseType(typeof(BaseResponse<string>), StatusCodes.Status500InternalServerError)]
+		public async Task<ActionResult<BaseResponse<string>>> Logout()
+		{
+			var userId = GetCurrentUserId();
+			var result = await _authService.RevokeRefreshTokenAsync(userId);
+			return HandleResponse(result);
+		}
 	}
 }

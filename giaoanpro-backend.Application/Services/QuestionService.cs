@@ -2,14 +2,13 @@ using FluentValidation;
 using giaoanpro_backend.Application.DTOs.Requests.Questions;
 using giaoanpro_backend.Application.DTOs.Responses.Bases;
 using giaoanpro_backend.Application.DTOs.Responses.Questions;
-using giaoanpro_backend.Application.Interfaces.Repositories;
+using giaoanpro_backend.Application.Interfaces.Repositories.Bases;
 using giaoanpro_backend.Application.Interfaces.Services;
 using giaoanpro_backend.Application.Interfaces.Services._3PServices;
 using giaoanpro_backend.Domain.Entities;
 using MapsterMapper;
 using Microsoft.EntityFrameworkCore;
 using System.Linq.Expressions;
-using giaoanpro_backend.Application.Interfaces.Repositories.Bases;
 using System.Text.Json;
 
 namespace giaoanpro_backend.Application.Services
@@ -77,9 +76,9 @@ namespace giaoanpro_backend.Application.Services
                 {
                     json = await _gemini.GenerateQuestionsJsonAsync(request.LessonPlanId, context, spec, count);
                 }
-                catch
+                catch (Exception ex)
                 {
-                    return BaseResponse<List<GetQuestionResponse>>.Fail("AI generation failed.");
+                    return BaseResponse<List<GetQuestionResponse>>.Fail($"AI generation failed: {ex.Message}");
                 }
                 try
                 {
@@ -273,8 +272,6 @@ namespace giaoanpro_backend.Application.Services
 
         public async Task<BaseResponse<string>> UpdateQuestionAsync(Guid id, UpdateQuestionRequest request)
         {
-
-
             var question = await _questionRepository.GetByConditionAsync(
                 predicate: q => q.Id == id && q.DeletedAt == null,
                 include: q => q.Include(x => x.Options)

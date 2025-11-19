@@ -1,13 +1,13 @@
 using giaoanpro_backend.API.Extensions;
 using giaoanpro_backend.Application.Extensions;
+using giaoanpro_backend.Domain.Enums;
 using giaoanpro_backend.Infrastructure.Extensions;
 using giaoanpro_backend.Persistence.Context;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.OpenApi.Models;
 using Microsoft.OpenApi.Any;
+using Microsoft.OpenApi.Models;
 using System.Text.Json.Serialization;
-using giaoanpro_backend.Domain.Enums;
 
 
 var builder = WebApplication.CreateBuilder(args);
