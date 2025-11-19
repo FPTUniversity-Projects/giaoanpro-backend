@@ -8,6 +8,9 @@ using giaoanpro_backend.Application.Interfaces.Services._3PServices;
 using giaoanpro_backend.Domain.Entities;
 using MapsterMapper;
 using Microsoft.EntityFrameworkCore;
+using QuestPDF.Fluent;
+using QuestPDF.Helpers;
+using QuestPDF.Infrastructure;
 using System.Linq.Expressions;
 using System.Text.Json;
 
@@ -403,6 +406,97 @@ namespace giaoanpro_backend.Application.Services
             return saved
                 ? BaseResponse<List<string>>.Ok(ids, "Questions created successfully.")
                 : BaseResponse<List<string>>.Fail("Failed to create questions.");
+        }
+
+        public async Task<byte[]> ExportQuestionsPdfAsync(Guid lessonPlanId, GetQuestionsRequest? filterRequest = null)
+        {
+            QuestPDF.Settings.License = QuestPDF.Infrastructure.LicenseType.Community;
+            
+            var request = filterRequest ?? new GetQuestionsRequest
+            {
+                PageNumber = 1,
+                PageSize = 1000,
+                LessonPlanId = lessonPlanId
+            };
+            request.LessonPlanId = lessonPlanId;
+
+            var result = await GetAllQuestionsAsync(request);
+            var questions = result.Success && result.Payload != null ? result.Payload.Items : new List<GetQuestionResponse>();
+
+            var lesson = await _lessonRepository.GetByConditionAsync(
+                lp => lp.Id == lessonPlanId,
+                asNoTracking: true
+            );
+
+            using var stream = new MemoryStream();
+            var document = Document.Create(container =>
+            {
+                container.Page(page =>
+                {
+                    page.Size(PageSizes.A4);
+                    page.Margin(2, Unit.Centimetre);
+                    page.DefaultTextStyle(x => x.FontSize(10).FontFamily("Arial"));
+
+                    page.Content()
+                        .Column(column =>
+                        {
+                            column.Spacing(10);
+
+                            // Header
+                            column.Item().Text("Ngân hàng câu hỏi").FontSize(16).Bold();
+                            if (lesson != null)
+                            {
+                                column.Item().Text($"Bài giảng: {lesson.Title}").FontSize(13);
+                                if (!string.IsNullOrWhiteSpace(lesson.Objective))
+                                {
+                                    column.Item().Text($"Mục tiêu: {lesson.Objective}").FontSize(11);
+                                }
+                            }
+                            column.Item().Text($"Tổng số câu hỏi: {questions.Count} | Ngày xuất: {DateTime.Now:dd/MM/yyyy}")
+                                .FontSize(10);
+
+                            column.Item().PaddingTop(10);
+
+                            // Questions
+                            for (int i = 0; i < questions.Count; i++)
+                            {
+                                var q = questions[i];
+                                var questionNumber = i + 1;
+
+                                column.Item().PaddingBottom(5).Column(questionColumn =>
+                                {
+                                    questionColumn.Item().Text($"{questionNumber}. {q.Text}").Bold();
+
+                                    if (q.QuestionType == "Theory" && q.Options != null && q.Options.Any())
+                                    {
+                                        foreach (var opt in q.Options)
+                                        {
+                                            var optionText = $"   - {opt.Text}";
+                                            if (opt.IsCorrect)
+                                            {
+                                                questionColumn.Item().Text(optionText)
+                                                    .FontColor(Colors.Red.Medium)
+                                                    .Bold();
+                                            }
+                                            else
+                                            {
+                                                questionColumn.Item().Text(optionText);
+                                            }
+                                        }
+                                    }
+                                    else
+                                    {
+                                        questionColumn.Item().Text("   Tự luận - Không có đáp án lựa chọn")
+                                            .Italic();
+                                    }
+                                });
+                            }
+                        });
+                });
+            });
+
+            document.GeneratePdf(stream);
+            return stream.ToArray();
         }
     }
 }
