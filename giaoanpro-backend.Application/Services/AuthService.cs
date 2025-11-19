@@ -145,21 +145,37 @@ namespace giaoanpro_backend.Application.Services
 			return Convert.ToBase64String(hash);
 		}
 
-		public async Task<BaseResponse<TokenResponse>> RefreshTokenAsync(Guid userId, RefreshTokenRequest request)
+		public async Task<BaseResponse<TokenResponse>> RefreshTokenAsync(RefreshTokenRequest request)
 		{
-			if (request is null || userId == Guid.Empty || string.IsNullOrWhiteSpace(request.RefreshToken))
+			// 1. Validate input
+			if (request is null || string.IsNullOrWhiteSpace(request.AccessToken) || string.IsNullOrWhiteSpace(request.RefreshToken))
 				return BaseResponse<TokenResponse>.Fail("Invalid refresh token request", ResponseErrorType.BadRequest);
 
+			// 2. Extract user id from (possibly expired) access token
+			var principal = _authRepository.GetPrincipalFromExpiredToken(request.AccessToken);
+			if (principal == null)
+			{
+				return BaseResponse<TokenResponse>.Fail("Invalid access token", ResponseErrorType.BadRequest);
+			}
+
+			var userIdClaim = principal.FindFirst("id")?.Value;
+			if (userIdClaim == null || !Guid.TryParse(userIdClaim, out var userId))
+			{
+				return BaseResponse<TokenResponse>.Fail("Invalid user identity in token", ResponseErrorType.BadRequest);
+			}
+
+			// 3. Validate the refresh token
 			var user = await _authRepository.ValidateRefreshToken(userId, request.RefreshToken);
 			if (user == null)
-				return BaseResponse<TokenResponse>.Fail("Invalid refresh token", ResponseErrorType.Unauthorized);
+				return BaseResponse<TokenResponse>.Fail("Invalid or expired refresh token", ResponseErrorType.Unauthorized);
 
-			// Optionally check if the user is active, etc.
+			// 4. Check user status
 			if (!user.IsActive)
 				return BaseResponse<TokenResponse>.Fail("User is inactive", ResponseErrorType.Forbidden);
 
-			// Generate new tokens
+			// 5. Generate new tokens (rotate refresh token)
 			var tokenResponse = await GenerateTokenResponseAsync(user);
+
 			return BaseResponse<TokenResponse>.Ok(tokenResponse);
 		}
 

@@ -68,6 +68,37 @@ namespace giaoanpro_backend.Persistence.Repositories
 			return tokenString;
 		}
 
+		public ClaimsPrincipal? GetPrincipalFromExpiredToken(string? token)
+		{
+			var tokenValidationParameters = new TokenValidationParameters
+			{
+				ValidateAudience = false, // Có thể để true nếu cần
+				ValidateIssuer = false,   // Có thể để true nếu cần
+				ValidateIssuerSigningKey = true,
+				IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_secretKey)), // Dùng _secretKey của bạn
+				ValidateLifetime = false // QUAN TRỌNG: Bỏ qua lỗi hết hạn
+			};
+
+			var tokenHandler = new JwtSecurityTokenHandler();
+			try
+			{
+				var principal = tokenHandler.ValidateToken(token, tokenValidationParameters, out SecurityToken securityToken);
+
+				// Kiểm tra thuật toán mã hóa để tránh tấn công giả mạo
+				if (!(securityToken is JwtSecurityToken jwtSecurityToken) ||
+					!jwtSecurityToken.Header.Alg.Equals(SecurityAlgorithms.HmacSha256, StringComparison.InvariantCultureIgnoreCase))
+				{
+					throw new SecurityTokenException("Invalid token");
+				}
+
+				return principal;
+			}
+			catch
+			{
+				return null;
+			}
+		}
+
 		// Accept optional preferred role; never assign Admin via Google registration.
 		public async Task<User> RegisterViaGoogleAsync(GoogleJsonWebSignature.Payload payload, UserRole? preferredRole = null)
 		{
