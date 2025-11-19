@@ -2,14 +2,12 @@ using FluentValidation;
 using giaoanpro_backend.Application.DTOs.Requests.Questions;
 using giaoanpro_backend.Application.DTOs.Responses.Bases;
 using giaoanpro_backend.Application.DTOs.Responses.Questions;
-using giaoanpro_backend.Application.Interfaces.Repositories;
+using giaoanpro_backend.Application.Interfaces.Repositories.Bases;
 using giaoanpro_backend.Application.Interfaces.Services;
 using giaoanpro_backend.Domain.Entities;
 using MapsterMapper;
 using Microsoft.EntityFrameworkCore;
 using System.Linq.Expressions;
-using giaoanpro_backend.Domain.Enums;
-using giaoanpro_backend.Application.Interfaces.Repositories.Bases;
 
 namespace giaoanpro_backend.Application.Services
 {
@@ -84,7 +82,7 @@ namespace giaoanpro_backend.Application.Services
 
 			if (question == null)
 			{
-				return BaseResponse<GetQuestionResponse>.Fail("Question not found.");
+				return BaseResponse<GetQuestionResponse>.Fail("Question not found.", ResponseErrorType.NotFound);
 			}
 
 			var response = _mapper.Map<GetQuestionResponse>(question);
@@ -128,7 +126,7 @@ namespace giaoanpro_backend.Application.Services
 			var result = await _questionRepository.SaveChangesAsync();
 			return result
 				? BaseResponse<string>.Ok(question.Id.ToString(), "Question created successfully.")
-				: BaseResponse<string>.Fail("Failed to create question.");
+				: BaseResponse<string>.Fail("Failed to create question.", ResponseErrorType.InternalError);
 		}
 
 		public async Task<BaseResponse<string>> UpdateQuestionAsync(Guid id, UpdateQuestionRequest request)
@@ -142,7 +140,7 @@ namespace giaoanpro_backend.Application.Services
 
 			if (question == null)
 			{
-				return BaseResponse<string>.Fail("Question not found.");
+				return BaseResponse<string>.Fail("Question not found.", ResponseErrorType.NotFound);
 			}
 
 			// Update question text
@@ -195,7 +193,7 @@ namespace giaoanpro_backend.Application.Services
 			var result = await _questionRepository.SaveChangesAsync();
 			return result
 				? BaseResponse<string>.Ok(null!, "Question updated successfully.")
-				: BaseResponse<string>.Fail("Failed to update question.");
+				: BaseResponse<string>.Fail("Failed to update question.", ResponseErrorType.InternalError);
 		}
 
 		public async Task<BaseResponse<string>> DeleteQuestionAsync(Guid id)
@@ -207,7 +205,7 @@ namespace giaoanpro_backend.Application.Services
 
 			if (question == null)
 			{
-				return BaseResponse<string>.Fail("Question not found.");
+				return BaseResponse<string>.Fail("Question not found.", ResponseErrorType.NotFound);
 			}
 
 			// Soft delete: mark DeletedAt for the question
@@ -217,7 +215,7 @@ namespace giaoanpro_backend.Application.Services
 			var result = await _questionRepository.SaveChangesAsync();
 			return result
 				? BaseResponse<string>.Ok(null!, "Question deleted successfully.")
-				: BaseResponse<string>.Fail("Failed to delete question.");
+				: BaseResponse<string>.Fail("Failed to delete question.", ResponseErrorType.InternalError);
 		}
 
 		public async Task<BaseResponse<List<string>>> CreateQuestionsBulkAsync(List<CreateQuestionRequest> requests)
@@ -259,7 +257,7 @@ namespace giaoanpro_backend.Application.Services
 			var saved = await _questionRepository.SaveChangesAsync();
 			return saved
 				? BaseResponse<List<string>>.Ok(ids, "Questions created successfully.")
-				: BaseResponse<List<string>>.Fail("Failed to create questions.");
+				: BaseResponse<List<string>>.Fail("Failed to create questions.", ResponseErrorType.InternalError);
 		}
 	}
 }

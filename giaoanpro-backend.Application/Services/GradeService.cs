@@ -4,7 +4,6 @@ using giaoanpro_backend.Application.DTOs.Responses.Grades;
 using giaoanpro_backend.Application.Interfaces.Repositories.Bases;
 using giaoanpro_backend.Application.Interfaces.Services;
 using giaoanpro_backend.Domain.Entities;
-using Microsoft.EntityFrameworkCore;
 
 namespace giaoanpro_backend.Application.Services
 {

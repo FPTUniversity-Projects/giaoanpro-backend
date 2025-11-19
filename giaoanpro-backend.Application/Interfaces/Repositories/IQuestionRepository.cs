@@ -1,5 +1,4 @@
 using giaoanpro_backend.Domain.Entities;
-using Microsoft.EntityFrameworkCore.Query;
 using System.Linq.Expressions;
 
 namespace giaoanpro_backend.Application.Interfaces.Repositories
