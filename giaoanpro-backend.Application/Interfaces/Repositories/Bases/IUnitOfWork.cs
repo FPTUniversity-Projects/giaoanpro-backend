@@ -29,5 +29,7 @@
 		ISyllabusRepository Syllabuses { get; }
 		IClassRepository Classes { get; }
 		IUserRepository Users { get; }
-	}
+        ILessonPlanRepository LessonPlans { get; }
+        IActivityRepository Activities { get; }
+    }
 }
