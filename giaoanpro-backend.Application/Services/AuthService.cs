@@ -40,17 +40,19 @@ namespace giaoanpro_backend.Application.Services
 			if (!string.Equals(providedHash, user.PasswordHash, StringComparison.Ordinal))
 				return BaseResponse<TokenResponse>.Fail("Invalid email or password.", ResponseErrorType.Unauthorized);
 
-			var tokenResponse = GenerateTokenResponseAsync(user);
+			var tokenResponse = await GenerateTokenResponseAsync(user);
 			return BaseResponse<TokenResponse>.Ok(tokenResponse);
 		}
 
-		private TokenResponse GenerateTokenResponseAsync(User user)
+		private async Task<TokenResponse> GenerateTokenResponseAsync(User user)
 		{
 			var role = user.Role.ToString();
 			var token = _authRepository.GenerateJwtToken(user, role);
+			var refreshToken = await _authRepository.GenerateAndSaveRefreshToken(user);
 			return new TokenResponse()
 			{
 				AccessToken = token,
+				RefreshToken = refreshToken,
 				Role = user.Role
 			};
 		}
@@ -100,7 +102,7 @@ namespace giaoanpro_backend.Application.Services
 			if (user.Role == UserRole.Admin)
 				return BaseResponse<TokenResponse>.Fail("Admin accounts must be created by an administrator.", ResponseErrorType.Forbidden);
 
-			var tokenResponse = GenerateTokenResponseAsync(user);
+			var tokenResponse = await GenerateTokenResponseAsync(user);
 
 			var message = "Google login successful";
 			return BaseResponse<TokenResponse>.Ok(tokenResponse, message);
@@ -141,6 +143,37 @@ namespace giaoanpro_backend.Application.Services
 			var bytes = Encoding.UTF8.GetBytes(password);
 			var hash = SHA256.HashData(bytes);
 			return Convert.ToBase64String(hash);
+		}
+
+		public async Task<BaseResponse<TokenResponse>> RefreshTokenAsync(Guid userId, RefreshTokenRequest request)
+		{
+			if (request is null || userId == Guid.Empty || string.IsNullOrWhiteSpace(request.RefreshToken))
+				return BaseResponse<TokenResponse>.Fail("Invalid refresh token request", ResponseErrorType.BadRequest);
+
+			var user = await _authRepository.ValidateRefreshToken(userId, request.RefreshToken);
+			if (user == null)
+				return BaseResponse<TokenResponse>.Fail("Invalid refresh token", ResponseErrorType.Unauthorized);
+
+			// Optionally check if the user is active, etc.
+			if (!user.IsActive)
+				return BaseResponse<TokenResponse>.Fail("User is inactive", ResponseErrorType.Forbidden);
+
+			// Generate new tokens
+			var tokenResponse = await GenerateTokenResponseAsync(user);
+			return BaseResponse<TokenResponse>.Ok(tokenResponse);
+		}
+
+		// Revoke refresh token (logout)
+		public async Task<BaseResponse<string>> RevokeRefreshTokenAsync(Guid userId)
+		{
+			if (userId == Guid.Empty)
+				return BaseResponse<string>.Fail("Invalid user id", ResponseErrorType.BadRequest);
+
+			var success = await _authRepository.RevokeRefreshToken(userId);
+			if (!success)
+				return BaseResponse<string>.Fail("Failed to revoke refresh token", ResponseErrorType.InternalError);
+
+			return BaseResponse<string>.Ok("Refresh token revoked successfully");
 		}
 	}
 }
