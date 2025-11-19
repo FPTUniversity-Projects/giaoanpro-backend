@@ -1,5 +1,6 @@
 using giaoanpro_backend.Domain.Enums;
 using System.Text.Json.Serialization;
+using System;
 
 namespace giaoanpro_backend.Application.DTOs.Requests.Questions
 {
@@ -14,5 +15,6 @@ namespace giaoanpro_backend.Application.DTOs.Requests.Questions
 		[JsonConverter(typeof(JsonStringEnumConverter))]
 		public AwarenessLevel? AwarenessLevel { get; set; }
 		public string? SearchText { get; set; }
+		public Guid? LessonPlanId { get; set; }
 	}
 }
