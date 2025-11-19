@@ -17,6 +17,8 @@ namespace giaoanpro_backend.Infrastructure.Extensions
 			// Keep explicit registrations for special types
 			services.AddScoped<IUnitOfWork, UnitOfWork>();
 			services.AddScoped(typeof(IGenericRepository<>), typeof(GenericRepository<>));
+			services.AddHttpClient();
+			services.AddScoped<IGeminiService, GeminiService>();
 
 			// Register infrastructure 3rd-party services used by Application layer
 			services.AddScoped<IVnPayService, VnPayService>();

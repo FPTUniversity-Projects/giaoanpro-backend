@@ -17,12 +17,14 @@ namespace giaoanpro_backend.API.Controllers
 		}
 
 
-		[HttpGet]
-		public async Task<IActionResult> GetLessonPlans([FromQuery] GetLessonPlansQuery query)
-		{
-			var result = await _lessonPlanService.GetLessonPlansAsync(query);
-			return HandleResponse(result);
-		}
+        [HttpGet]
+        [Authorize]
+        public async Task<IActionResult> GetLessonPlans([FromQuery] GetLessonPlansQuery query)
+        {
+            var userId = GetCurrentUserId();
+            var result = await _lessonPlanService.GetLessonPlansAsync(query, userId);
+            return HandleResponse(result);
+        }
 
 		[HttpGet("{id}")]
 		public async Task<IActionResult> GetLessonPlanById(Guid id)
@@ -32,7 +34,7 @@ namespace giaoanpro_backend.API.Controllers
 		}
 
 		[HttpPost]
-		[Authorize(Roles = "Teacher")]
+		//[Authorize(Roles = "Teacher")]
 		public async Task<IActionResult> CreateLessonPlan([FromBody] CreateLessonPlanRequest request)
 		{
 			var validation = ValidateRequestBody(request);

@@ -18,24 +18,101 @@ namespace giaoanpro_backend.Application.Services
 			_unitOfWork = unitOfWork;
 		}
 
-		public async Task<BaseResponse<PagedResult<LessonPlanResponse>>> GetLessonPlansAsync(GetLessonPlansQuery query)
-		{
-			try
-			{
-				var (lessonPlans, totalCount) = await _unitOfWork.LessonPlans.GetPagedAsync(
-					filter: lp =>
-						(string.IsNullOrEmpty(query.Title) || lp.Title.ToLower().Contains(query.Title.ToLower())) &&
-						(!query.SubjectId.HasValue || lp.SubjectId == query.SubjectId.Value) &&
-						(!query.UserId.HasValue || lp.UserId == query.UserId.Value),
-					include: q => q
-						.Include(lp => lp.Subject)
-						.Include(lp => lp.User)
-						.Include(lp => lp.Activities),
-					orderBy: q => q.OrderByDescending(lp => lp.CreatedAt),
-					pageNumber: query.PageNumber,
-					pageSize: query.PageSize,
-					asNoTracking: true
-				);
+        public async Task<BaseResponse<PagedResult<LessonPlanResponse>>> GetLessonPlansAsync(GetLessonPlansQuery query, Guid userId)
+        {
+            try
+            {
+                // Get the current user
+                var user = await _unitOfWork.Users.GetByIdAsync(userId);
+                if (user == null)
+                {
+                    return BaseResponse<PagedResult<LessonPlanResponse>>.Fail("User not found", ResponseErrorType.NotFound);
+                }
+
+                Guid? classGradeId = null;
+
+                // Handle based on user role
+                if (user.Role == UserRole.Student)
+                {
+                    // Students must provide ClassId
+                    if (!query.ClassId.HasValue)
+                    {
+                        return BaseResponse<PagedResult<LessonPlanResponse>>.Fail(
+                            "ClassId is required for students", 
+                            ResponseErrorType.BadRequest);
+                    }
+
+                    // Check if class exists
+                    var classEntity = await _unitOfWork.Classes.GetByConditionAsync(
+                        c => c.Id == query.ClassId.Value,
+                        include: q => q.Include(c => c.Grade).Include(c => c.Members)
+                    );
+
+                    if (classEntity == null)
+                    {
+                        return BaseResponse<PagedResult<LessonPlanResponse>>.Fail("Class not found", ResponseErrorType.NotFound);
+                    }
+
+                    // Check if student is enrolled in the class
+                    var isEnrolled = classEntity.Members.Any(m => m.StudentId == userId);
+                    if (!isEnrolled)
+                    {
+                        return BaseResponse<PagedResult<LessonPlanResponse>>.Fail(
+                            "You are not enrolled in this class", 
+                            ResponseErrorType.Forbidden);
+                    }
+
+                    // Get the grade ID from the class for filtering
+                    classGradeId = classEntity.GradeId;
+                }
+                else if (user.Role == UserRole.Teacher)
+                {
+                    // If teacher provides ClassId, validate they are the teacher of that class
+                    if (query.ClassId.HasValue)
+                    {
+                        var classEntity = await _unitOfWork.Classes.GetByConditionAsync(
+                            c => c.Id == query.ClassId.Value,
+                            include: q => q.Include(c => c.Grade)
+                        );
+
+                        if (classEntity == null)
+                        {
+                            return BaseResponse<PagedResult<LessonPlanResponse>>.Fail("Class not found", ResponseErrorType.NotFound);
+                        }
+
+                        if (classEntity.TeacherId != userId)
+                        {
+                            return BaseResponse<PagedResult<LessonPlanResponse>>.Fail(
+                                "You are not the teacher of this class", 
+                                ResponseErrorType.Forbidden);
+                        }
+
+                        // Get the grade ID from the class for filtering
+                        classGradeId = classEntity.GradeId;
+                    }
+                }
+
+                var (lessonPlans, totalCount) = await _unitOfWork.LessonPlans.GetPagedAsync(
+                    filter: lp =>
+                        // For teachers: filter by userId (their own lesson plans)
+                        // For students: don't filter by userId (show all teachers' lesson plans)
+                        (user.Role == UserRole.Teacher ? lp.UserId == userId : true) &&
+                        // If classGradeId is set, filter by matching grade
+                        (!classGradeId.HasValue || lp.Subject.GradeId == classGradeId.Value) &&
+                        // Other optional filters
+                        (string.IsNullOrEmpty(query.Title) || lp.Title.ToLower().Contains(query.Title.ToLower())) &&
+                        (!query.SubjectId.HasValue || lp.SubjectId == query.SubjectId.Value) &&
+                        (!query.UserId.HasValue || lp.UserId == query.UserId.Value),
+                    include: q => q
+                        .Include(lp => lp.Subject)
+                            .ThenInclude(s => s.Grade)
+                        .Include(lp => lp.User)
+                        .Include(lp => lp.Activities),
+                    orderBy: q => q.OrderByDescending(lp => lp.CreatedAt),
+                    pageNumber: query.PageNumber,
+                    pageSize: query.PageSize,
+                    asNoTracking: true
+                );
 
 				var lessonPlanResponses = lessonPlans.Select(lp => new LessonPlanResponse
 				{
@@ -222,11 +299,15 @@ namespace giaoanpro_backend.Application.Services
 			}
 		}
 
-		public async Task<BaseResponse> DeleteLessonPlanAsync(Guid id, Guid userId)
-		{
-			try
-			{
-				var lessonPlan = await _unitOfWork.LessonPlans.GetByIdAsync(id);
+        public async Task<BaseResponse> DeleteLessonPlanAsync(Guid id, Guid userId)
+        {
+            try
+            {
+                var lessonPlan = await _unitOfWork.LessonPlans.GetByConditionAsync(
+                    lp => lp.Id == id,
+                    include: q => q.Include(lp => lp.Activities)
+                        .ThenInclude(a => a.Exams)
+                );
 
 				if (lessonPlan == null)
 				{
@@ -239,15 +320,26 @@ namespace giaoanpro_backend.Application.Services
 					return BaseResponse.Fail("You don't have permission to delete this lesson plan", ResponseErrorType.Forbidden);
 				}
 
-				_unitOfWork.LessonPlans.Remove(lessonPlan);
-				await _unitOfWork.SaveChangesAsync();
+                // Check if any activity has exams
+                var hasActivitiesWithExams = lessonPlan.Activities.Any(a => a.Exams != null && a.Exams.Any());
+                if (hasActivitiesWithExams)
+                {
+                    return BaseResponse.Fail(
+                        "Cannot delete lesson plan because one or more activities have associated exams. Please delete the exams first.", 
+                        ResponseErrorType.Conflict);
+                }
 
-				return BaseResponse.Ok("Lesson plan deleted successfully");
-			}
-			catch (Exception ex)
-			{
-				return BaseResponse.Fail($"Error deleting lesson plan: {ex.Message}", ResponseErrorType.InternalError);
-			}
-		}
-	}
+                // Since cascade delete is configured in the database for Activities,
+                // deleting the lesson plan will automatically delete all activities
+                _unitOfWork.LessonPlans.Remove(lessonPlan);
+                await _unitOfWork.SaveChangesAsync();
+
+                return BaseResponse.Ok("Lesson plan and all associated activities deleted successfully");
+            }
+            catch (Exception ex)
+            {
+                return BaseResponse.Fail($"Error deleting lesson plan: {ex.Message}", ResponseErrorType.InternalError);
+            }
+        }
+    }
 }

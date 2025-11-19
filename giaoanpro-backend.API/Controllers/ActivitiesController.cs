@@ -16,12 +16,14 @@ namespace giaoanpro_backend.API.Controllers
 			_activityService = activityService;
 		}
 
-		[HttpGet]
-		public async Task<IActionResult> GetActivities([FromQuery] GetActivitiesQuery query)
-		{
-			var result = await _activityService.GetActivitiesAsync(query);
-			return HandleResponse(result);
-		}
+        [HttpGet]
+        [Authorize]
+        public async Task<IActionResult> GetActivities([FromQuery] GetActivitiesQuery query)
+        {
+            var userId = GetCurrentUserId();
+            var result = await _activityService.GetActivitiesAsync(query, userId);
+            return HandleResponse(result);
+        }
 
 		[HttpGet("{id}")]
 		public async Task<IActionResult> GetActivityById(Guid id)
@@ -31,7 +33,7 @@ namespace giaoanpro_backend.API.Controllers
 		}
 
 		[HttpPost]
-		[Authorize(Roles = "Teacher")]
+		//[Authorize(Roles = "Teacher")]
 		public async Task<IActionResult> CreateActivity([FromBody] CreateActivityRequest request)
 		{
 			var validation = ValidateRequestBody(request);
@@ -48,16 +50,18 @@ namespace giaoanpro_backend.API.Controllers
 			var validation = ValidateRequestBody(request);
 			if (validation != null) return validation;
 
-			var result = await _activityService.UpdateActivityAsync(id, request);
-			return HandleResponse(result);
-		}
+            var userId = GetCurrentUserId();
+            var result = await _activityService.UpdateActivityAsync(id, request, userId);
+            return HandleResponse(result);
+        }
 
-		[HttpDelete("{id}")]
-		[Authorize(Roles = "Teacher")]
-		public async Task<IActionResult> DeleteActivity(Guid id)
-		{
-			var result = await _activityService.DeleteActivityAsync(id);
-			return HandleResponse(result);
-		}
-	}
+        [HttpDelete("{id}")]
+        [Authorize(Roles = "Teacher")]
+        public async Task<IActionResult> DeleteActivity(Guid id)
+        {
+            var userId = GetCurrentUserId();
+            var result = await _activityService.DeleteActivityAsync(id, userId);
+            return HandleResponse(result);
+        }
+    }
 }

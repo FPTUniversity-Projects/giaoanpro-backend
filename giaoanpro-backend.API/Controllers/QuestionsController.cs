@@ -43,6 +43,13 @@ namespace giaoanpro_backend.API.Controllers
 			return result.Success ? Ok(result) : BadRequest(result);
 		}
 
+		[HttpPost("generate-ai")]
+		public async Task<IActionResult> GenerateQuestionsAi([FromBody] GenerateQuestionsRequest request)
+		{
+			var result = await _questionService.GenerateQuestionsAiAsync(request);
+			return result.Success ? Ok(result) : BadRequest(result);
+		}
+
 		[HttpPut("{id:Guid}")]
 		public async Task<IActionResult> UpdateQuestion(Guid id, [FromBody] UpdateQuestionRequest request)
 		{
