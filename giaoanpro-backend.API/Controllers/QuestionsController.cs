@@ -63,5 +63,19 @@ namespace giaoanpro_backend.API.Controllers
 			var result = await _questionService.DeleteQuestionAsync(id);
 			return result.Success ? Ok(result) : BadRequest(result);
 		}
+
+		[HttpGet("export-pdf/{lessonPlanId:Guid}")]
+		public async Task<IActionResult> ExportQuestionsPdf(Guid lessonPlanId, [FromQuery] GetQuestionsRequest? filterRequest = null)
+		{
+			try
+			{
+				var pdfBytes = await _questionService.ExportQuestionsPdfAsync(lessonPlanId, filterRequest);
+				return File(pdfBytes, "application/pdf", $"questions-{lessonPlanId}.pdf");
+			}
+			catch (Exception ex)
+			{
+				return BadRequest(new { message = $"Không thể xuất PDF: {ex.Message}" });
+			}
+		}
 	}
 }

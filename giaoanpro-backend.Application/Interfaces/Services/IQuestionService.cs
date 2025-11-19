@@ -13,5 +13,6 @@ namespace giaoanpro_backend.Application.Interfaces.Services
 		Task<BaseResponse<string>> DeleteQuestionAsync(Guid id);
 		Task<BaseResponse<List<string>>> CreateQuestionsBulkAsync(List<CreateQuestionRequest> requests);
 		Task<BaseResponse<List<GetQuestionResponse>>> GenerateQuestionsAiAsync(GenerateQuestionsRequest request);
+		Task<byte[]> ExportQuestionsPdfAsync(Guid lessonPlanId, GetQuestionsRequest? filterRequest = null);
 	}
 }
