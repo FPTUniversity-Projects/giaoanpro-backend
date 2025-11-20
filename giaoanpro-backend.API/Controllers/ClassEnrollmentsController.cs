@@ -45,9 +45,9 @@ namespace giaoanpro_backend.API.Controllers
 			return HandleResponse(result);
 		}
 
-		[HttpGet("teacher/remove")]
+		[HttpDelete("teacher/remove")]
 		[Authorize(Roles = "Teacher")]
-		public async Task<IActionResult> RemoveStudentFromClassByTeacher([FromQuery] EnrollClassRequest request)
+		public async Task<IActionResult> RemoveStudentFromClassByTeacher([FromBody] EnrollClassRequest request)
 		{
 			var result = await _classEnrollmentService.RemoveStudentFromClassAsync(request.ClassId, request.StudentId ?? Guid.Empty);
 			return HandleResponse(result);
