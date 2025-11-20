@@ -49,6 +49,8 @@ namespace giaoanpro_backend.Application.Mappings
 				.Map(dest => dest.EndDate, src => src.EndDate)
 				.Map(dest => dest.CurrentLessonPlansCreated, src => src.CurrentLessonPlansCreated)
 				.Map(dest => dest.CurrentPromptsUsed, src => src.CurrentPromptsUsed)
+				.Map(dest => dest.MaxLessonPlans, src => src.Plan != null ? src.Plan.MaxLessonPlans : 0)
+				.Map(dest => dest.MaxPromptsPerDay, src => src.Plan != null ? src.Plan.MaxPromptsPerDay : 0)
 				.Map(dest => dest.LastPromptResetDate, src => src.LastPromptResetDate);
 
 			config.NewConfig<Subscription, GetMySubscriptionDetailResponse>()
