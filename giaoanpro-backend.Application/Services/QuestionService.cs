@@ -8,6 +8,9 @@ using giaoanpro_backend.Application.Interfaces.Services._3PServices;
 using giaoanpro_backend.Domain.Entities;
 using MapsterMapper;
 using Microsoft.EntityFrameworkCore;
+using QuestPDF.Fluent;
+using QuestPDF.Helpers;
+using QuestPDF.Infrastructure;
 using System.Linq.Expressions;
 using System.Text.Json;
 
@@ -36,16 +39,19 @@ namespace giaoanpro_backend.Application.Services
             _gemini = gemini;
         }
 
-        public async Task<BaseResponse<List<GetQuestionResponse>>> GenerateQuestionsAiAsync(GenerateQuestionsRequest request)
+        public async Task<BaseResponse<List<GetQuestionResponse>>> GenerateQuestionsAiAsync(GenerateQuestionsRequest request, Guid userId)
         {
-            // Validate lesson plan exists
+            // Validate lesson plan exists and check ownership
             var lesson = await _lessonRepository.GetByConditionAsync(
                 lp => lp.Id == request.LessonPlanId,
                 include: q => q.Include(x => x.Activities),
                 asNoTracking: true
             );
             if (lesson == null)
-                return BaseResponse<List<GetQuestionResponse>>.Fail("LessonPlan not found.");
+                return BaseResponse<List<GetQuestionResponse>>.Fail("LessonPlan not found.", ResponseErrorType.NotFound);
+            
+            if (lesson.UserId != userId)
+                return BaseResponse<List<GetQuestionResponse>>.Fail("You do not have permission to access this lesson plan.", ResponseErrorType.Forbidden);
 
             // Build literature-focused context from LessonPlan + Activities
             var sb = new System.Text.StringBuilder();
@@ -161,8 +167,22 @@ namespace giaoanpro_backend.Application.Services
             return BaseResponse<List<GetQuestionResponse>>.Ok(responses, "AI questions generated successfully.");
         }
 
-        public async Task<BaseResponse<GetQuestionsPagedResponse>> GetAllQuestionsAsync(GetQuestionsRequest request)
+        public async Task<BaseResponse<GetQuestionsPagedResponse>> GetAllQuestionsAsync(GetQuestionsRequest request, Guid userId)
         {
+            // Check ownership if LessonPlanId is provided
+            if (request.LessonPlanId.HasValue)
+            {
+                var lessonPlan = await _lessonRepository.GetByIdAsync(request.LessonPlanId.Value);
+                if (lessonPlan == null)
+                {
+                    return BaseResponse<GetQuestionsPagedResponse>.Fail("Lesson plan not found.", ResponseErrorType.NotFound);
+                }
+                if (lessonPlan.UserId != userId)
+                {
+                    return BaseResponse<GetQuestionsPagedResponse>.Fail("You do not have permission to access this lesson plan.", ResponseErrorType.Forbidden);
+                }
+            }
+
             // Build filter expression (always exclude soft-deleted)
             Expression<Func<Question, bool>>? filter = null;
 
@@ -224,13 +244,17 @@ namespace giaoanpro_backend.Application.Services
             return BaseResponse<GetQuestionResponse>.Ok(response, "Question retrieved successfully.");
         }
 
-        public async Task<BaseResponse<string>> CreateQuestionAsync(CreateQuestionRequest request)
+        public async Task<BaseResponse<string>> CreateQuestionAsync(CreateQuestionRequest request, Guid userId)
         {
-            // Validate LessonPlan existence
-            var hasLesson = await _lessonRepository.AnyAsync(lp => lp.Id == request.LessonPlanId);
-            if (!hasLesson)
+            // Validate LessonPlan existence and check ownership
+            var lessonPlan = await _lessonRepository.GetByIdAsync(request.LessonPlanId);
+            if (lessonPlan == null)
             {
-                return BaseResponse<string>.Fail("LessonPlan not found.");
+                return BaseResponse<string>.Fail("LessonPlan not found.", ResponseErrorType.NotFound);
+            }
+            if (lessonPlan.UserId != userId)
+            {
+                return BaseResponse<string>.Fail("You do not have permission to access this lesson plan.", ResponseErrorType.Forbidden);
             }
 
             // Create question
@@ -357,17 +381,26 @@ namespace giaoanpro_backend.Application.Services
                 : BaseResponse<string>.Fail("Failed to delete question.");
         }
 
-        public async Task<BaseResponse<List<string>>> CreateQuestionsBulkAsync(List<CreateQuestionRequest> requests)
+        public async Task<BaseResponse<List<string>>> CreateQuestionsBulkAsync(List<CreateQuestionRequest> requests, Guid userId)
         {
+            // Check ownership for all unique lesson plan IDs first
+            var uniqueLessonPlanIds = requests.Select(r => r.LessonPlanId).Distinct().ToList();
+            foreach (var lessonPlanId in uniqueLessonPlanIds)
+            {
+                var lessonPlan = await _lessonRepository.GetByIdAsync(lessonPlanId);
+                if (lessonPlan == null)
+                {
+                    return BaseResponse<List<string>>.Fail($"Lesson plan with ID {lessonPlanId} not found.", ResponseErrorType.NotFound);
+                }
+                if (lessonPlan.UserId != userId)
+                {
+                    return BaseResponse<List<string>>.Fail($"You do not have permission to access lesson plan with ID {lessonPlanId}.", ResponseErrorType.Forbidden);
+                }
+            }
+
             var ids = new List<string>();
             foreach (var req in requests)
             {
-                // Validate LessonPlan existence per request
-                var hasLesson = await _lessonRepository.AnyAsync(lp => lp.Id == req.LessonPlanId);
-                if (!hasLesson)
-                {
-                    return BaseResponse<List<string>>.Fail($"LessonPlan not found for request with text '{req.Text}'.");
-                }
 
                 var question = new Question
                 {
@@ -403,6 +436,108 @@ namespace giaoanpro_backend.Application.Services
             return saved
                 ? BaseResponse<List<string>>.Ok(ids, "Questions created successfully.")
                 : BaseResponse<List<string>>.Fail("Failed to create questions.");
+        }
+
+        public async Task<byte[]> ExportQuestionsPdfAsync(Guid lessonPlanId, GetQuestionsRequest? filterRequest, Guid userId)
+        {
+            // Check lesson plan ownership
+            var lessonPlan = await _lessonRepository.GetByIdAsync(lessonPlanId);
+            if (lessonPlan == null)
+            {
+                throw new Exception("Lesson plan not found.");
+            }
+            if (lessonPlan.UserId != userId)
+            {
+                throw new UnauthorizedAccessException("You do not have permission to access this lesson plan.");
+            }
+
+            QuestPDF.Settings.License = QuestPDF.Infrastructure.LicenseType.Community;
+            
+            var request = filterRequest ?? new GetQuestionsRequest
+            {
+                PageNumber = 1,
+                PageSize = 1000,
+                LessonPlanId = lessonPlanId
+            };
+            request.LessonPlanId = lessonPlanId;
+
+            var result = await GetAllQuestionsAsync(request, userId);
+            var questions = result.Success && result.Payload != null ? result.Payload.Items : new List<GetQuestionResponse>();
+
+            var lesson = await _lessonRepository.GetByConditionAsync(
+                lp => lp.Id == lessonPlanId,
+                asNoTracking: true
+            );
+
+            using var stream = new MemoryStream();
+            var document = Document.Create(container =>
+            {
+                container.Page(page =>
+                {
+                    page.Size(PageSizes.A4);
+                    page.Margin(2, Unit.Centimetre);
+                    page.DefaultTextStyle(x => x.FontSize(10).FontFamily("Arial"));
+
+                    page.Content()
+                        .Column(column =>
+                        {
+                            column.Spacing(10);
+
+                            // Header
+                            column.Item().Text("Ngân hàng câu hỏi").FontSize(16).Bold();
+                            if (lesson != null)
+                            {
+                                column.Item().Text($"Bài giảng: {lesson.Title}").FontSize(13);
+                                if (!string.IsNullOrWhiteSpace(lesson.Objective))
+                                {
+                                    column.Item().Text($"Mục tiêu: {lesson.Objective}").FontSize(11);
+                                }
+                            }
+                            column.Item().Text($"Tổng số câu hỏi: {questions.Count} | Ngày xuất: {DateTime.Now:dd/MM/yyyy}")
+                                .FontSize(10);
+
+                            column.Item().PaddingTop(10);
+
+                            // Questions
+                            for (int i = 0; i < questions.Count; i++)
+                            {
+                                var q = questions[i];
+                                var questionNumber = i + 1;
+
+                                column.Item().PaddingBottom(5).Column(questionColumn =>
+                                {
+                                    questionColumn.Item().Text($"{questionNumber}. {q.Text}").Bold();
+
+                                    if (q.QuestionType == "Theory" && q.Options != null && q.Options.Any())
+                                    {
+                                        foreach (var opt in q.Options)
+                                        {
+                                            var optionText = $"   - {opt.Text}";
+                                            if (opt.IsCorrect)
+                                            {
+                                                questionColumn.Item().Text(optionText)
+                                                    .FontColor(Colors.Red.Medium)
+                                                    .Bold();
+                                            }
+                                            else
+                                            {
+                                                questionColumn.Item().Text(optionText);
+                                            }
+                                        }
+                                    }
+                                    else
+                                    {
+                                        questionColumn.Item().Text("   Tự luận - Không có đáp án lựa chọn")
+                                            .Italic();
+                                    }
+                                });
+                            }
+                        });
+                });
+            });
+
+            document.GeneratePdf(stream);
+            return stream.ToArray();
         }
     }
 }
