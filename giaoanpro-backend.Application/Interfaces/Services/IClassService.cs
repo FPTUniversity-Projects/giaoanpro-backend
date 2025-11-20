@@ -7,7 +7,7 @@ namespace giaoanpro_backend.Application.Interfaces.Services
 	public interface IClassService
 	{
 		Task<BaseResponse<PagedResult<ClassResponse>>> GetClassesAsync(GetClassesQuery query);
-		Task<BaseResponse<PagedResult<ClassMemberResponse>>> GetClassMembersByClassIdAsync(Guid id);
+		Task<BaseResponse<PagedResult<ClassMemberResponse>>> GetClassMembersByClassIdAsync(Guid id, GetClassmembersQuery query);
 		Task<BaseResponse<ClassResponse>> GetClassByIdAsync(Guid id);
 		Task<BaseResponse<ClassResponse>> CreateClassAsync(CreateClassRequest request);
 		Task<BaseResponse<ClassResponse>> UpdateClassAsync(Guid id, UpdateClassRequest request);

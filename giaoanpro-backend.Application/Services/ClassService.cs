@@ -283,37 +283,39 @@ namespace giaoanpro_backend.Application.Services
 			}
 		}
 
-		public async Task<BaseResponse<PagedResult<ClassMemberResponse>>> GetClassMembersByClassIdAsync(Guid id)
+		public async Task<BaseResponse<PagedResult<ClassMemberResponse>>> GetClassMembersByClassIdAsync(Guid id, GetClassmembersQuery query)
 		{
 			try
 			{
 				if (id == Guid.Empty)
 					return BaseResponse<PagedResult<ClassMemberResponse>>.Fail("Invalid class id", ResponseErrorType.BadRequest);
 
-				var classEntity = await _unitOfWork.Classes.GetWithMembersAsync(id);
-				if (classEntity == null)
-				{
+				query ??= new GetClassmembersQuery();
+
+				// Ensure class exists
+				var exists = await _unitOfWork.Classes.AnyAsync(c => c.Id == id);
+				if (!exists)
 					return BaseResponse<PagedResult<ClassMemberResponse>>.Fail("Class not found", ResponseErrorType.NotFound);
-				}
 
-				var members = classEntity.Members ?? new List<ClassMember>();
+				var (members, totalCount) = await _unitOfWork.Classes.GetMembersPagedAsync(
+					id,
+					query.Search,
+					query.Role,
+					query.SortBy,
+					query.IsDescending,
+					query.PageNumber,
+					query.PageSize
+				);
 
-				var memberResponses = members
-					.OrderBy(m => m.Student?.FullName)
-					.Select(m => new ClassMemberResponse
-					{
-						Id = m.Student.Id,
-						FullName = m.Student.FullName,
-						Email = m.Student.Email,
-						Role = m.Student.Role.ToString()
-					})
-					.ToList();
+				var memberResponses = members.Select(m => new ClassMemberResponse
+				{
+					Id = m.Student.Id,
+					FullName = m.Student.FullName,
+					Email = m.Student.Email,
+					Role = m.Student.Role.ToString()
+				}).ToList();
 
-				int totalCount = memberResponses.Count;
-				int pageNumber = 1;
-				int pageSize = Math.Max(1, totalCount);
-
-				var pagedResult = new PagedResult<ClassMemberResponse>(memberResponses, pageNumber, pageSize, totalCount);
+				var pagedResult = new PagedResult<ClassMemberResponse>(memberResponses, query.PageNumber, query.PageSize, totalCount);
 
 				return BaseResponse<PagedResult<ClassMemberResponse>>.Ok(pagedResult);
 			}

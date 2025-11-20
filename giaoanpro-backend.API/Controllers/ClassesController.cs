@@ -31,9 +31,9 @@ namespace giaoanpro_backend.API.Controllers
 		[ProducesResponseType(typeof(BaseResponse<PagedResult<ClassMemberResponse>>), StatusCodes.Status401Unauthorized)]
 		[ProducesResponseType(typeof(BaseResponse<PagedResult<ClassMemberResponse>>), StatusCodes.Status403Forbidden)]
 		[ProducesResponseType(typeof(BaseResponse<PagedResult<ClassMemberResponse>>), StatusCodes.Status500InternalServerError)]
-		public async Task<ActionResult<BaseResponse<PagedResult<ClassMemberResponse>>>> GetClassMembersByClassId(Guid id)
+		public async Task<ActionResult<BaseResponse<PagedResult<ClassMemberResponse>>>> GetClassMembersByClassId([FromRoute] Guid id, [FromQuery] GetClassmembersQuery query)
 		{
-			var result = await _classService.GetClassMembersByClassIdAsync(id);
+			var result = await _classService.GetClassMembersByClassIdAsync(id, query);
 			return HandleResponse(result);
 		}
 
