@@ -4,6 +4,8 @@
 	{
 		public int CurrentLessonPlansCreated { get; set; }
 		public int CurrentPromptsUsed { get; set; }
+		public int MaxLessonPlans { get; set; }
+		public int MaxPromptsPerDay { get; set; }
 		public DateTime? LastPromptResetDate { get; set; }
 	}
 }
