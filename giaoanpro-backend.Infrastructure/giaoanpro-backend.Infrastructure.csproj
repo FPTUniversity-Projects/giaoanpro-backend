@@ -13,8 +13,11 @@
   </ItemGroup>
 
   <ItemGroup>
+    <PackageReference Include="AWSSDK.Extensions.NETCore.Setup" Version="4.0.3.13" />
+    <PackageReference Include="AWSSDK.S3" Version="4.0.12" />
     <PackageReference Include="Microsoft.AspNetCore.Cors" Version="2.3.0" />
     <PackageReference Include="Microsoft.Extensions.Hosting" Version="8.0.1" />
+    <PackageReference Include="QuestPDF" Version="2025.7.4" />
   </ItemGroup>
 
 </Project>

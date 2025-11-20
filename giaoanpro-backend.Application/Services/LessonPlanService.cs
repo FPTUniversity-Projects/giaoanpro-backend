@@ -12,10 +12,12 @@ namespace giaoanpro_backend.Application.Services
 	public class LessonPlanService : ILessonPlanService
 	{
 		private readonly IUnitOfWork _unitOfWork;
+		private readonly ILessonPlanPdfManager _pdfManager;
 
-		public LessonPlanService(IUnitOfWork unitOfWork)
+		public LessonPlanService(IUnitOfWork unitOfWork, ILessonPlanPdfManager pdfManager)
 		{
 			_unitOfWork = unitOfWork;
+			_pdfManager = pdfManager;
 		}
 
         public async Task<BaseResponse<PagedResult<LessonPlanResponse>>> GetLessonPlansAsync(GetLessonPlansQuery query, Guid userId)
@@ -124,12 +126,27 @@ namespace giaoanpro_backend.Application.Services
 					Title = lp.Title,
 					Objective = lp.Objective,
 					Note = lp.Note,
+					Docs = lp.Docs,
 					ActivityCount = lp.Activities.Count,
 					CreatedAt = lp.CreatedAt,
 					UpdatedAt = lp.UpdatedAt
 				}).ToList();
 
-				var pagedResult = new PagedResult<LessonPlanResponse>(lessonPlanResponses, query.PageNumber, query.PageSize, totalCount);
+				// Get subscription info for teachers (once per page, not per item)
+				SubscriptionInfoResponse? subscriptionInfo = null;
+				if (user.Role == UserRole.Teacher)
+				{
+					subscriptionInfo = await GetSubscriptionInfoAsync(userId);
+				}
+
+				// Use LessonPlanPagedResult to include subscription info at page level
+				var pagedResult = new LessonPlanPagedResult(
+					lessonPlanResponses, 
+					query.PageNumber, 
+					query.PageSize, 
+					totalCount,
+					subscriptionInfo
+				);
 
 				return BaseResponse<PagedResult<LessonPlanResponse>>.Ok(pagedResult);
 			}
@@ -160,6 +177,7 @@ namespace giaoanpro_backend.Application.Services
 					Title = lessonPlan.Title,
 					Objective = lessonPlan.Objective,
 					Note = lessonPlan.Note,
+					Docs = lessonPlan.Docs,
 					ActivityCount = lessonPlan.Activities.Count,
 					CreatedAt = lessonPlan.CreatedAt,
 					UpdatedAt = lessonPlan.UpdatedAt
@@ -181,6 +199,14 @@ namespace giaoanpro_backend.Application.Services
 				var user = await _unitOfWork.Users.GetByIdAsync(userId);
 				if (user != null && user.Role == UserRole.Student)
 					return BaseResponse<LessonPlanResponse>.Fail($"This action only allow for Teachers", ResponseErrorType.Forbidden);
+
+				// Check subscription and limits (returns the subscription if valid)
+				var subscriptionCheck = await CheckSubscriptionLimitAsync(userId);
+				if (!subscriptionCheck.IsSuccess)
+				{
+					return BaseResponse<LessonPlanResponse>.Fail(subscriptionCheck.Message, subscriptionCheck.ErrorType);
+				}
+
 				// Check if subject exists
 				var subject = await _unitOfWork.Subjects.GetByIdAsync(request.SubjectId);
 				if (subject == null)
@@ -208,6 +234,24 @@ namespace giaoanpro_backend.Application.Services
 				await _unitOfWork.LessonPlans.AddAsync(lessonPlan);
 				await _unitOfWork.SaveChangesAsync();
 
+				// Increment CurrentLessonPlansCreated in active subscription
+				await IncrementSubscriptionUsageAsync(userId);
+
+				// Generate and upload PDF
+				try
+				{
+					var pdfUrl = await _pdfManager.GenerateAndUploadPdfAsync(lessonPlan.Id);
+					lessonPlan.Docs = pdfUrl;
+					_unitOfWork.LessonPlans.Update(lessonPlan);
+					await _unitOfWork.SaveChangesAsync();
+				}
+				catch (Exception ex)
+				{
+					// Log error but don't fail the entire operation
+					// PDF can be regenerated later
+					Console.WriteLine($"Error generating PDF for lesson plan {lessonPlan.Id}: {ex.Message}");
+				}
+
 				// Reload with navigation properties
 				lessonPlan = await _unitOfWork.LessonPlans.GetByIdWithActivitiesAsync(lessonPlan.Id);
 
@@ -221,6 +265,7 @@ namespace giaoanpro_backend.Application.Services
 					Title = lessonPlan.Title,
 					Objective = lessonPlan.Objective,
 					Note = lessonPlan.Note,
+					Docs = lessonPlan.Docs,
 					ActivityCount = lessonPlan.Activities.Count,
 					CreatedAt = lessonPlan.CreatedAt,
 					UpdatedAt = lessonPlan.UpdatedAt
@@ -265,6 +310,9 @@ namespace giaoanpro_backend.Application.Services
 					return BaseResponse<LessonPlanResponse>.Fail($"Lesson plan '{request.Title}' already exists", ResponseErrorType.Conflict);
 				}
 
+				// Store old PDF URL for deletion
+				var oldPdfUrl = lessonPlan.Docs;
+
 				lessonPlan.SubjectId = request.SubjectId;
 				lessonPlan.Title = request.Title;
 				lessonPlan.Objective = request.Objective;
@@ -272,6 +320,27 @@ namespace giaoanpro_backend.Application.Services
 
 				_unitOfWork.LessonPlans.Update(lessonPlan);
 				await _unitOfWork.SaveChangesAsync();
+
+				// Regenerate PDF
+				try
+				{
+					// Delete old PDF if exists
+					if (!string.IsNullOrWhiteSpace(oldPdfUrl))
+					{
+						await _pdfManager.DeletePdfAsync(oldPdfUrl);
+					}
+
+					// Generate and upload new PDF
+					var pdfUrl = await _pdfManager.GenerateAndUploadPdfAsync(lessonPlan.Id);
+					lessonPlan.Docs = pdfUrl;
+					_unitOfWork.LessonPlans.Update(lessonPlan);
+					await _unitOfWork.SaveChangesAsync();
+				}
+				catch (Exception ex)
+				{
+					// Log error but don't fail the entire operation
+					Console.WriteLine($"Error regenerating PDF for lesson plan {lessonPlan.Id}: {ex.Message}");
+				}
 
 				// Reload with navigation properties
 				lessonPlan = await _unitOfWork.LessonPlans.GetByIdWithActivitiesAsync(id);
@@ -286,6 +355,7 @@ namespace giaoanpro_backend.Application.Services
 					Title = lessonPlan.Title,
 					Objective = lessonPlan.Objective,
 					Note = lessonPlan.Note,
+					Docs = lessonPlan.Docs,
 					ActivityCount = lessonPlan.Activities.Count,
 					CreatedAt = lessonPlan.CreatedAt,
 					UpdatedAt = lessonPlan.UpdatedAt
@@ -329,10 +399,27 @@ namespace giaoanpro_backend.Application.Services
                         ResponseErrorType.Conflict);
                 }
 
+				// Store PDF URL for deletion
+				var pdfUrl = lessonPlan.Docs;
+
                 // Since cascade delete is configured in the database for Activities,
                 // deleting the lesson plan will automatically delete all activities
                 _unitOfWork.LessonPlans.Remove(lessonPlan);
                 await _unitOfWork.SaveChangesAsync();
+
+				// Delete PDF from S3
+				try
+				{
+					if (!string.IsNullOrWhiteSpace(pdfUrl))
+					{
+						await _pdfManager.DeletePdfAsync(pdfUrl);
+					}
+				}
+				catch (Exception ex)
+				{
+					// Log error but don't fail the entire operation
+					Console.WriteLine($"Error deleting PDF for lesson plan {id}: {ex.Message}");
+				}
 
                 return BaseResponse.Ok("Lesson plan and all associated activities deleted successfully");
             }
@@ -341,5 +428,103 @@ namespace giaoanpro_backend.Application.Services
                 return BaseResponse.Fail($"Error deleting lesson plan: {ex.Message}", ResponseErrorType.InternalError);
             }
         }
+
+		/// <summary>
+		/// Check if user has an active subscription and hasn't exceeded the lesson plan limit
+		/// </summary>
+		private async Task<(bool IsSuccess, string Message, ResponseErrorType ErrorType)> CheckSubscriptionLimitAsync(Guid userId)
+		{
+			var now = DateTime.UtcNow;
+
+			// Get active subscription
+			var subscription = await _unitOfWork.Subscriptions.GetByConditionAsync(
+				s => s.UserId == userId &&
+					 s.Status == SubscriptionStatus.Active &&
+					 s.StartDate <= now &&
+					 s.EndDate >= now,
+				include: q => q.Include(s => s.Plan)
+			);
+
+			if (subscription == null)
+			{
+				return (false, "You don't have an active subscription. Please subscribe to create lesson plans.", ResponseErrorType.Forbidden);
+			}
+
+			// Check against CurrentLessonPlansCreated in subscription
+			if (subscription.CurrentLessonPlansCreated >= subscription.Plan.MaxLessonPlans)
+			{
+				return (false, 
+					$"You have reached the maximum limit of {subscription.Plan.MaxLessonPlans} lesson plans for your subscription plan '{subscription.Plan.Name}'. " +
+					$"Please upgrade your plan or wait until {subscription.EndDate:yyyy-MM-dd} for renewal.", 
+					ResponseErrorType.Forbidden);
+			}
+
+			return (true, string.Empty, ResponseErrorType.None);
+		}
+
+		/// <summary>
+		/// Increment CurrentLessonPlansCreated in active subscription
+		/// </summary>
+		private async Task IncrementSubscriptionUsageAsync(Guid userId)
+		{
+			var now = DateTime.UtcNow;
+
+			// Get active subscription (without tracking for update)
+			var subscription = await _unitOfWork.Subscriptions.GetByConditionAsync(
+				s => s.UserId == userId &&
+					 s.Status == SubscriptionStatus.Active &&
+					 s.StartDate <= now &&
+					 s.EndDate >= now,
+				asNoTracking: false  // Enable tracking for update
+			);
+
+			if (subscription != null)
+			{
+				// Increment the counter
+				subscription.CurrentLessonPlansCreated++;
+				
+				// Update subscription
+				_unitOfWork.Subscriptions.Update(subscription);
+				await _unitOfWork.SaveChangesAsync();
+			}
+		}
+
+		/// <summary>
+		/// Get subscription information for a user
+		/// </summary>
+		private async Task<SubscriptionInfoResponse?> GetSubscriptionInfoAsync(Guid userId)
+		{
+			var now = DateTime.UtcNow;
+
+			// Get active subscription
+			var subscription = await _unitOfWork.Subscriptions.GetByConditionAsync(
+				s => s.UserId == userId &&
+					 s.Status == SubscriptionStatus.Active &&
+					 s.StartDate <= now &&
+					 s.EndDate >= now,
+				include: q => q.Include(s => s.Plan),
+				asNoTracking: true
+			);
+
+			if (subscription == null)
+			{
+				return null;
+			}
+
+			// Use CurrentLessonPlansCreated from subscription record
+			var usedLessonPlans = subscription.CurrentLessonPlansCreated;
+
+			return new SubscriptionInfoResponse
+			{
+				SubscriptionId = subscription.Id,
+				PlanName = subscription.Plan.Name,
+				StartDate = subscription.StartDate,
+				EndDate = subscription.EndDate,
+				MaxLessonPlans = subscription.Plan.MaxLessonPlans,
+				UsedLessonPlans = usedLessonPlans,
+				AvailableLessonPlans = subscription.Plan.MaxLessonPlans - usedLessonPlans,
+				IsActive = true
+			};
+		}
     }
 }

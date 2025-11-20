@@ -20,7 +20,7 @@ namespace giaoanpro_backend.Domain.Entities
 		public virtual Activity? Parent { get; set; }
 
 		public virtual ICollection<Activity> Children { get; set; } = new List<Activity>();
-
 		public virtual ICollection<Exam> Exams { get; set; } = new List<Exam>();
+		public virtual ICollection<Material> Materials { get; set; } = new List<Material>();
 	}
 }
