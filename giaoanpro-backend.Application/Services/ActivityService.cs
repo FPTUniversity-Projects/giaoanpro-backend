@@ -78,7 +78,9 @@ namespace giaoanpro_backend.Application.Services
                         (!query.ParentId.HasValue || a.ParentId == query.ParentId.Value),
                     include: q => q
                         .Include(a => a.LessonPlan)
-                        .Include(a => a.Children),
+                        .Include(a => a.Children)
+                        .Include(a => a.Exams.Where(e => e.DeletedAt == null))
+                            .ThenInclude(e => e.ExamQuestions),
                     orderBy: q => q.OrderBy(a => a.CreatedAt),
                     pageNumber: query.PageNumber,
                     pageSize: query.PageSize,
@@ -98,6 +100,15 @@ namespace giaoanpro_backend.Application.Services
 					Product = a.Product,
 					Implementation = a.Implementation,
 					ChildrenCount = a.Children.Count,
+					Exams = a.Exams.Select(e => new DTOs.Responses.Exams.ExamSummaryResponse
+					{
+						Id = e.Id,
+						Title = e.Title,
+						Description = e.Description,
+						DurationMinutes = e.DurationMinutes,
+						QuestionCount = e.ExamQuestions?.Count ?? 0,
+						ActivityId = e.ActivityId
+					}).ToList(),
 					CreatedAt = a.CreatedAt,
 					UpdatedAt = a.UpdatedAt
 				}).ToList();
@@ -116,7 +127,15 @@ namespace giaoanpro_backend.Application.Services
 		{
 			try
 			{
-				var activity = await _unitOfWork.Activities.GetByIdWithChildrenAsync(id);
+				var activity = await _unitOfWork.Activities.GetByConditionAsync(
+					a => a.Id == id,
+					include: q => q
+						.Include(a => a.LessonPlan)
+						.Include(a => a.Children)
+						.Include(a => a.Exams.Where(e => e.DeletedAt == null))
+							.ThenInclude(e => e.ExamQuestions),
+					asNoTracking: true
+				);
 
 				if (activity == null)
 				{
@@ -136,6 +155,15 @@ namespace giaoanpro_backend.Application.Services
 					Product = activity.Product,
 					Implementation = activity.Implementation,
 					ChildrenCount = activity.Children.Count,
+					Exams = activity.Exams.Select(e => new DTOs.Responses.Exams.ExamSummaryResponse
+					{
+						Id = e.Id,
+						Title = e.Title,
+						Description = e.Description,
+						DurationMinutes = e.DurationMinutes,
+						QuestionCount = e.ExamQuestions?.Count ?? 0,
+						ActivityId = e.ActivityId
+					}).ToList(),
 					CreatedAt = activity.CreatedAt,
 					UpdatedAt = activity.UpdatedAt
 				};
