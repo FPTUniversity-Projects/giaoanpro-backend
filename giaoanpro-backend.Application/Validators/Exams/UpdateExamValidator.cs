@@ -15,9 +15,6 @@ namespace giaoanpro_backend.Application.Validators.Exams
                 .NotEmpty().WithMessage("Title is required.")
                 .MaximumLength(200).WithMessage("Title must not exceed 200 characters.");
 
-            RuleFor(x => x.DurationMinutes)
-                .GreaterThan(0).WithMessage("DurationMinutes must be greater than zero.");
-
             RuleFor(x => x.QuestionIds)
                 .NotNull().WithMessage("QuestionIds must be provided.")
                 .Must(list => list != null && list.Any()).WithMessage("At least one question must be selected.")

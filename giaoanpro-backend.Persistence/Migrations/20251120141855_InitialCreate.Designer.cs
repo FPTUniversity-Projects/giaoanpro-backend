@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using giaoanpro_backend.Persistence.Context;
 
@@ -11,9 +12,11 @@ using giaoanpro_backend.Persistence.Context;
 namespace giaoanpro_backend.Persistence.Migrations
 {
     [DbContext(typeof(GiaoanproDBContext))]
-    partial class GiaoanproDBContextModelSnapshot : ModelSnapshot
+    [Migration("20251120141855_InitialCreate")]
+    partial class InitialCreate
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -263,7 +266,7 @@ namespace giaoanpro_backend.Persistence.Migrations
                     b.Property<int>("DurationMinutes")
                         .HasColumnType("int");
 
-                    b.Property<Guid?>("MatrixId")
+                    b.Property<Guid>("MatrixId")
                         .HasColumnType("uniqueidentifier");
 
                     b.Property<string>("Title")
@@ -410,10 +413,6 @@ namespace giaoanpro_backend.Persistence.Migrations
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime2");
 
-                    b.Property<string>("Docs")
-                        .HasMaxLength(255)
-                        .HasColumnType("nvarchar(255)");
-
                     b.Property<string>("Note")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
@@ -442,42 +441,6 @@ namespace giaoanpro_backend.Persistence.Migrations
                     b.HasIndex("UserId");
 
                     b.ToTable("LessonPlans");
-                });
-
-            modelBuilder.Entity("giaoanpro_backend.Domain.Entities.Material", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<Guid>("ActivityId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("Title")
-                        .IsRequired()
-                        .HasMaxLength(255)
-                        .HasColumnType("nvarchar(255)");
-
-                    b.Property<string>("Type")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<DateTime>("UpdatedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("Url")
-                        .IsRequired()
-                        .HasMaxLength(500)
-                        .HasColumnType("nvarchar(500)");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("ActivityId");
-
-                    b.ToTable("Materials");
                 });
 
             modelBuilder.Entity("giaoanpro_backend.Domain.Entities.Payment", b =>
@@ -1016,7 +979,8 @@ namespace giaoanpro_backend.Persistence.Migrations
                     b.HasOne("giaoanpro_backend.Domain.Entities.ExamMatrix", "Matrix")
                         .WithMany("Exams")
                         .HasForeignKey("MatrixId")
-                        .OnDelete(DeleteBehavior.Restrict);
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
 
                     b.Navigation("Activity");
 
@@ -1091,17 +1055,6 @@ namespace giaoanpro_backend.Persistence.Migrations
                     b.Navigation("Subject");
 
                     b.Navigation("User");
-                });
-
-            modelBuilder.Entity("giaoanpro_backend.Domain.Entities.Material", b =>
-                {
-                    b.HasOne("giaoanpro_backend.Domain.Entities.Activity", "Activity")
-                        .WithMany("Materials")
-                        .HasForeignKey("ActivityId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Activity");
                 });
 
             modelBuilder.Entity("giaoanpro_backend.Domain.Entities.Payment", b =>
@@ -1217,8 +1170,6 @@ namespace giaoanpro_backend.Persistence.Migrations
                     b.Navigation("Children");
 
                     b.Navigation("Exams");
-
-                    b.Navigation("Materials");
                 });
 
             modelBuilder.Entity("giaoanpro_backend.Domain.Entities.Attempt", b =>

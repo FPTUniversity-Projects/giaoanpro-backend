@@ -105,5 +105,63 @@ namespace giaoanpro_backend.Infrastructure._3PServices
             var jsonContent = text.Substring(jsonStart, jsonEnd - jsonStart + 1);
             return jsonContent;
         }
+
+        public async Task<string> GenerateContentAsync(string prompt, CancellationToken ct = default)
+        {
+            var apiKey = _config["Gemini:ApiKey"] ?? Environment.GetEnvironmentVariable("GOOGLE_API_KEY");
+            if (string.IsNullOrWhiteSpace(apiKey))
+            {
+                throw new InvalidOperationException("Missing Gemini API key (Gemini:ApiKey or GOOGLE_API_KEY).");
+            }
+
+            var client = _httpClientFactory.CreateClient("Gemini");
+            client.Timeout = TimeSpan.FromSeconds(60);
+
+            var body = new
+            {
+                model = "gemini-2.0-flash",
+                response_format = new { type = "json_object" },
+                messages = new[]
+                {
+                    new { role = "system", content = "You are a helpful assistant." },
+                    new { role = "user", content = prompt }
+                }
+            };
+
+            var req = new HttpRequestMessage(HttpMethod.Post, "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions")
+            {
+                Content = new StringContent(JsonSerializer.Serialize(body), Encoding.UTF8, "application/json")
+            };
+            req.Headers.Add("Authorization", $"Bearer {apiKey}");
+
+            using var res = await client.SendAsync(req, ct);
+            var respBody = await res.Content.ReadAsStringAsync(ct);
+            if (!res.IsSuccessStatusCode)
+            {
+                throw new InvalidOperationException($"Gemini API error: {(int)res.StatusCode} {res.ReasonPhrase} - {respBody}");
+            }
+
+            using var doc = JsonDocument.Parse(respBody);
+
+            // Try to find the content field in the response
+            if (doc.RootElement.TryGetProperty("choices", out var choices) && choices.ValueKind == JsonValueKind.Array && choices.GetArrayLength() > 0)
+            {
+                var first = choices[0];
+                if (first.TryGetProperty("message", out var message) && message.TryGetProperty("content", out var contentEl))
+                {
+                    if (contentEl.ValueKind == JsonValueKind.String)
+                    {
+                        return contentEl.GetString() ?? string.Empty;
+                    }
+                    else if (contentEl.ValueKind == JsonValueKind.Object)
+                    {
+                        return contentEl.GetRawText();
+                    }
+                }
+            }
+
+            // fallback: return entire response body
+            return respBody;
+        }
     }
 }

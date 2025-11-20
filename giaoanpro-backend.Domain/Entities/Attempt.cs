@@ -11,7 +11,13 @@ namespace giaoanpro_backend.Domain.Entities
 		public DateTime StartedAt { get; set; }
 		public DateTime? CompletedAt { get; set; }
 		public int FinalScore { get; set; }
-		public AttemptStatus Status { get; set; }
+
+		// Use AttemptStatus enum for lifecycle state
+		public AttemptStatus Status { get; set; } = AttemptStatus.InProgress;
+
+		// Auto-scored (MCQ) and manual components
+		public decimal? AutoScore { get; set; }
+		public decimal? ManualScore { get; set; }
 
 		// Navigation properties
 		public virtual User User { get; set; } = null!;

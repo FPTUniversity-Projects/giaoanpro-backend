@@ -24,6 +24,7 @@ namespace giaoanpro_backend.Persistence.Context
 		public DbSet<Exam> Exams { get; set; }
 		public DbSet<ExamQuestion> ExamQuestions { get; set; }
 		public DbSet<ExamMatrix> ExamMatrices { get; set; }
+		public DbSet<ExamMatrixDetail> ExamMatrixDetails { get; set; }
 		public DbSet<Attempt> Attempts { get; set; }
 		public DbSet<AttemptDetail> AttemptDetails { get; set; }
 		public DbSet<QuestionAttribute> QuestionAttributes { get; set; }
@@ -213,11 +214,17 @@ namespace giaoanpro_backend.Persistence.Context
 				.WithMany(u => u.ExamMatrices)
 				.HasForeignKey(em => em.SubjectId)
 				.OnDelete(DeleteBehavior.Restrict);
-			modelBuilder.Entity<ExamMatrix>()
-				.HasOne(em => em.LessonPlan)
-				.WithMany(u => u.ExamMatrices)
-				.HasForeignKey(em => em.LessonPlanId)
-				.OnDelete(DeleteBehavior.Restrict);
+
+			// Configure ExamMatrixDetail entity
+			modelBuilder.Entity<ExamMatrixDetail>()
+				.HasKey(ml => ml.Id);
+			modelBuilder.Entity<ExamMatrixDetail>()
+				.HasIndex("MatrixId");
+			modelBuilder.Entity<ExamMatrixDetail>()
+				.HasOne(ml => ml.Matrix)
+				.WithMany(m => m.Lines)
+				.HasForeignKey(ml => ml.MatrixId)
+				.OnDelete(DeleteBehavior.Cascade);
 
 			// Activity -> LessonPlan
 			modelBuilder.Entity<Activity>()
@@ -291,14 +298,14 @@ namespace giaoanpro_backend.Persistence.Context
 				.Property(a => a.Status)
 				.HasConversion<string>();
 			modelBuilder.Entity<Question>()
-                .Property(q => q.QuestionType)
-                .HasConversion<string>();
-            modelBuilder.Entity<Question>()
-                .Property(q => q.DifficultyLevel)
-                .HasConversion<string>();
-            modelBuilder.Entity<Question>()
-                .Property(q => q.AwarenessLevel)
-                .HasConversion<string>();
+				.Property(q => q.QuestionType)
+				.HasConversion<string>();
+			modelBuilder.Entity<Question>()
+				.Property(q => q.DifficultyLevel)
+				.HasConversion<string>();
+			modelBuilder.Entity<Question>()
+				.Property(q => q.AwarenessLevel)
+				.HasConversion<string>();
 			modelBuilder.Entity<Attribute>()
 				.Property(a => a.Value)
 				.HasConversion<string>();

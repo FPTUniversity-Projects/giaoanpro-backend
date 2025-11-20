@@ -2,7 +2,7 @@ namespace giaoanpro_backend.Domain.Enums
 {
 	public enum QuestionType
 	{
-		Theory,
+		Theory = 1,
 		Exercise
 	}
 }
