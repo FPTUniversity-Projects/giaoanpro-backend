@@ -542,10 +542,6 @@ namespace giaoanpro_backend.Application.Services
                             if (lesson != null)
                             {
                                 column.Item().Text($"Bài giảng: {lesson.Title}").FontSize(13);
-                                if (!string.IsNullOrWhiteSpace(lesson.Objective))
-                                {
-                                    column.Item().Text($"Mục tiêu: {lesson.Objective}").FontSize(11);
-                                }
                             }
                             column.Item().Text($"Tổng số câu hỏi: {questions.Count} | Ngày xuất: {DateTime.Now:dd/MM/yyyy}")
                                 .FontSize(10);
