@@ -35,5 +35,6 @@ namespace giaoanpro_backend.Application.Interfaces.Repositories.Bases
         ILessonPlanRepository LessonPlans { get; }
         IActivityRepository Activities { get; }
 		IExamMatrixRepository ExamMatrices { get; }
-	}
+        IMaterialRepository Materials { get; }
+    }
 }

@@ -40,6 +40,20 @@ namespace giaoanpro_backend.Persistence.Repositories.Bases
             }
         }
 
+        public IMaterialRepository Materials
+        {
+            get
+            {
+                var key = typeof(IMaterialRepository);
+                if (!_repositories.TryGetValue(key, out var repo))
+                {
+                    repo = new MaterialRepository(_context);
+                    _repositories[key] = repo!;
+                }
+                return (IMaterialRepository)repo!;
+            }
+        }
+
         public ISubscriptionRepository Subscriptions
 		{
 			get

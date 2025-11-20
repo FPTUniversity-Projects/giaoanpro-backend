@@ -1,4 +1,5 @@
 ﻿using giaoanpro_backend.Domain.Bases;
+using System.ComponentModel.DataAnnotations;
 
 namespace giaoanpro_backend.Domain.Entities
 {
@@ -10,6 +11,9 @@ namespace giaoanpro_backend.Domain.Entities
 		public string Title { get; set; } = string.Empty;
 		public string Objective { get; set; } = string.Empty;
 		public string Note { get; set; } = string.Empty;
+		
+		[MaxLength(255)]
+		public string? Docs { get; set; }
 
 		// Navigation properties
 		public virtual User User { get; set; } = null!;

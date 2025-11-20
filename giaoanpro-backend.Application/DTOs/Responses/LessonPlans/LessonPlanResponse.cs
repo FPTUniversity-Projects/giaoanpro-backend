@@ -10,6 +10,7 @@
 		public string Title { get; set; } = string.Empty;
 		public string Objective { get; set; } = string.Empty;
 		public string Note { get; set; } = string.Empty;
+		public string? Docs { get; set; }
 		public int ActivityCount { get; set; }
 		public DateTime CreatedAt { get; set; }
 		public DateTime UpdatedAt { get; set; }

@@ -1,4 +1,6 @@
-﻿using giaoanpro_backend.Application.Interfaces.Repositories.Bases;
+﻿using Amazon.S3;
+using Amazon.Runtime;
+using giaoanpro_backend.Application.Interfaces.Repositories.Bases;
 using giaoanpro_backend.Application.Interfaces.Services._3PServices;
 using giaoanpro_backend.Infrastructure._3PServices;
 using giaoanpro_backend.Persistence.Context;
@@ -22,7 +24,46 @@ namespace giaoanpro_backend.Infrastructure.Extensions
 
 			// Register infrastructure 3rd-party services used by Application layer
 			services.AddScoped<IVnPayService, VnPayService>();
-			// Register other 3rd-party services here...
+			services.AddScoped<IS3Service, S3Service>();
+
+			// Register AWS S3 client with environment variables
+			// AWS SDK will automatically use environment variables:
+			// - AWS_ACCESS_KEY_ID
+			// - AWS_SECRET_ACCESS_KEY
+			// - AWS_REGION or AWS_DEFAULT_REGION
+			services.AddSingleton<IAmazonS3>(sp =>
+			{
+				var region = Environment.GetEnvironmentVariable("AWS_REGION")
+					?? Environment.GetEnvironmentVariable("AWS_DEFAULT_REGION")
+					?? "us-east-1";
+
+				var config = new Amazon.S3.AmazonS3Config
+				{
+					RegionEndpoint = Amazon.RegionEndpoint.GetBySystemName(region),
+					Timeout = TimeSpan.FromSeconds(60),
+					MaxErrorRetry = 3,
+					// Force path style for better compatibility
+					ForcePathStyle = false,
+					// Use HTTPS
+					UseHttp = false
+				};
+
+				// Check if credentials are provided via environment variables
+				var accessKey = Environment.GetEnvironmentVariable("AWS_ACCESS_KEY_ID");
+				var secretKey = Environment.GetEnvironmentVariable("AWS_SECRET_ACCESS_KEY");
+
+				if (!string.IsNullOrWhiteSpace(accessKey) && !string.IsNullOrWhiteSpace(secretKey))
+				{
+					// Use explicit credentials from environment variables
+					var credentials = new BasicAWSCredentials(accessKey, secretKey);
+					return new Amazon.S3.AmazonS3Client(credentials, config);
+				}
+				else
+				{
+					// Fall back to default credential chain (IAM roles, credentials file, etc.)
+					return new Amazon.S3.AmazonS3Client(config);
+				}
+			});
 
 			// Convention-based registration for repository implementations in the Persistence assembly.
 			// It will register classes where an interface named "I{ClassName}" exists.

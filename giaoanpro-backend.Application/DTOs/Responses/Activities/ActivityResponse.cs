@@ -1,4 +1,6 @@
-﻿using giaoanpro_backend.Domain.Enums;
+﻿using giaoanpro_backend.Application.DTOs.Responses.Exams;
+using giaoanpro_backend.Application.DTOs.Responses.Materials;
+using giaoanpro_backend.Domain.Enums;
 
 namespace giaoanpro_backend.Application.DTOs.Responses.Activities
 {
@@ -15,6 +17,8 @@ namespace giaoanpro_backend.Application.DTOs.Responses.Activities
 		public string Product { get; set; } = string.Empty;
 		public string Implementation { get; set; } = string.Empty;
 		public int ChildrenCount { get; set; }
+		public List<ExamSummaryResponse> Exams { get; set; } = new List<ExamSummaryResponse>();
+		public List<MaterialResponse> Materials { get; set; } = new List<MaterialResponse>();
 		public DateTime CreatedAt { get; set; }
 		public DateTime UpdatedAt { get; set; }
 	}

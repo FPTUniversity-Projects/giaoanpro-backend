@@ -34,6 +34,7 @@ namespace giaoanpro_backend.Persistence.Context
 		public DbSet<Activity> Activitys { get; set; }
 		public DbSet<ClassMember> ClassMembers { get; set; }
 		public DbSet<Payment> Payments { get; set; }
+		public DbSet<Material> Materials { get; set; }
 
 		protected override void OnModelCreating(ModelBuilder modelBuilder)
 		{
@@ -240,6 +241,13 @@ namespace giaoanpro_backend.Persistence.Context
 				.IsRequired(false) // ParentId is nullable
 				.OnDelete(DeleteBehavior.Restrict);
 
+			// Material -> Activity
+			modelBuilder.Entity<Material>()
+				.HasOne(m => m.Activity)
+				.WithMany(a => a.Materials)
+				.HasForeignKey(m => m.ActivityId)
+				.OnDelete(DeleteBehavior.Cascade);
+
 			// LessonPlan -> User & Subject
 			modelBuilder.Entity<LessonPlan>()
 				.HasOne(lp => lp.User)
@@ -303,6 +311,9 @@ namespace giaoanpro_backend.Persistence.Context
 				.HasConversion<string>();
 			modelBuilder.Entity<Activity>()
 				.Property(a => a.Type)
+				.HasConversion<string>();
+			modelBuilder.Entity<Material>()
+				.Property(m => m.Type)
 				.HasConversion<string>();
 			modelBuilder.Entity<Subscription>()
 				.Property(s => s.Status)

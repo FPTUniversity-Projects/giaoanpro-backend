@@ -1,4 +1,6 @@
 using giaoanpro_backend.Application.DTOs.Requests.Classes;
+using giaoanpro_backend.Application.DTOs.Responses.Bases;
+using giaoanpro_backend.Application.DTOs.Responses.Classes;
 using giaoanpro_backend.Application.Interfaces.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -20,6 +22,18 @@ namespace giaoanpro_backend.API.Controllers
 		public async Task<IActionResult> GetClasses([FromQuery] GetClassesQuery query)
 		{
 			var result = await _classService.GetClassesAsync(query);
+			return HandleResponse(result);
+		}
+
+		[HttpGet("{id:Guid}/members")]
+		[ProducesResponseType(typeof(BaseResponse<PagedResult<ClassMemberResponse>>), StatusCodes.Status200OK)]
+		[ProducesResponseType(typeof(BaseResponse<PagedResult<ClassMemberResponse>>), StatusCodes.Status400BadRequest)]
+		[ProducesResponseType(typeof(BaseResponse<PagedResult<ClassMemberResponse>>), StatusCodes.Status401Unauthorized)]
+		[ProducesResponseType(typeof(BaseResponse<PagedResult<ClassMemberResponse>>), StatusCodes.Status403Forbidden)]
+		[ProducesResponseType(typeof(BaseResponse<PagedResult<ClassMemberResponse>>), StatusCodes.Status500InternalServerError)]
+		public async Task<ActionResult<BaseResponse<PagedResult<ClassMemberResponse>>>> GetClassMembersByClassId([FromRoute] Guid id, [FromQuery] GetClassmembersQuery query)
+		{
+			var result = await _classService.GetClassMembersByClassIdAsync(id, query);
 			return HandleResponse(result);
 		}
 
