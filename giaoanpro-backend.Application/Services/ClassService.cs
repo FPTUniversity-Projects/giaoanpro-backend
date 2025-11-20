@@ -282,5 +282,45 @@ namespace giaoanpro_backend.Application.Services
 				return BaseResponse.Fail($"Error deleting class: {ex.Message}", ResponseErrorType.InternalError);
 			}
 		}
+
+		public async Task<BaseResponse<PagedResult<ClassMemberResponse>>> GetClassMembersByClassIdAsync(Guid id)
+		{
+			try
+			{
+				if (id == Guid.Empty)
+					return BaseResponse<PagedResult<ClassMemberResponse>>.Fail("Invalid class id", ResponseErrorType.BadRequest);
+
+				var classEntity = await _unitOfWork.Classes.GetWithMembersAsync(id);
+				if (classEntity == null)
+				{
+					return BaseResponse<PagedResult<ClassMemberResponse>>.Fail("Class not found", ResponseErrorType.NotFound);
+				}
+
+				var members = classEntity.Members ?? new List<ClassMember>();
+
+				var memberResponses = members
+					.OrderBy(m => m.Student?.FullName)
+					.Select(m => new ClassMemberResponse
+					{
+						Id = m.Student.Id,
+						FullName = m.Student.FullName,
+						Email = m.Student.Email,
+						Role = m.Student.Role.ToString()
+					})
+					.ToList();
+
+				int totalCount = memberResponses.Count;
+				int pageNumber = 1;
+				int pageSize = Math.Max(1, totalCount);
+
+				var pagedResult = new PagedResult<ClassMemberResponse>(memberResponses, pageNumber, pageSize, totalCount);
+
+				return BaseResponse<PagedResult<ClassMemberResponse>>.Ok(pagedResult);
+			}
+			catch (Exception ex)
+			{
+				return BaseResponse<PagedResult<ClassMemberResponse>>.Fail($"Error retrieving class members: {ex.Message}", ResponseErrorType.InternalError);
+			}
+		}
 	}
 }
