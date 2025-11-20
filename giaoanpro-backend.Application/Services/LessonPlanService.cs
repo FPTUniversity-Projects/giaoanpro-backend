@@ -200,7 +200,7 @@ namespace giaoanpro_backend.Application.Services
 				if (user != null && user.Role == UserRole.Student)
 					return BaseResponse<LessonPlanResponse>.Fail($"This action only allow for Teachers", ResponseErrorType.Forbidden);
 
-				// Check subscription and limits
+				// Check subscription and limits (returns the subscription if valid)
 				var subscriptionCheck = await CheckSubscriptionLimitAsync(userId);
 				if (!subscriptionCheck.IsSuccess)
 				{
@@ -233,6 +233,9 @@ namespace giaoanpro_backend.Application.Services
 
 				await _unitOfWork.LessonPlans.AddAsync(lessonPlan);
 				await _unitOfWork.SaveChangesAsync();
+
+				// Increment CurrentLessonPlansCreated in active subscription
+				await IncrementSubscriptionUsageAsync(userId);
 
 				// Generate and upload PDF
 				try
@@ -447,14 +450,8 @@ namespace giaoanpro_backend.Application.Services
 				return (false, "You don't have an active subscription. Please subscribe to create lesson plans.", ResponseErrorType.Forbidden);
 			}
 
-			// Count lesson plans created within the subscription period
-			var lessonPlanCount = await _unitOfWork.LessonPlans.CountAsync(
-				lp => lp.UserId == userId &&
-					  lp.CreatedAt >= subscription.StartDate &&
-					  lp.CreatedAt <= subscription.EndDate
-			);
-
-			if (lessonPlanCount >= subscription.Plan.MaxLessonPlans)
+			// Check against CurrentLessonPlansCreated in subscription
+			if (subscription.CurrentLessonPlansCreated >= subscription.Plan.MaxLessonPlans)
 			{
 				return (false, 
 					$"You have reached the maximum limit of {subscription.Plan.MaxLessonPlans} lesson plans for your subscription plan '{subscription.Plan.Name}'. " +
@@ -463,6 +460,33 @@ namespace giaoanpro_backend.Application.Services
 			}
 
 			return (true, string.Empty, ResponseErrorType.None);
+		}
+
+		/// <summary>
+		/// Increment CurrentLessonPlansCreated in active subscription
+		/// </summary>
+		private async Task IncrementSubscriptionUsageAsync(Guid userId)
+		{
+			var now = DateTime.UtcNow;
+
+			// Get active subscription (without tracking for update)
+			var subscription = await _unitOfWork.Subscriptions.GetByConditionAsync(
+				s => s.UserId == userId &&
+					 s.Status == SubscriptionStatus.Active &&
+					 s.StartDate <= now &&
+					 s.EndDate >= now,
+				asNoTracking: false  // Enable tracking for update
+			);
+
+			if (subscription != null)
+			{
+				// Increment the counter
+				subscription.CurrentLessonPlansCreated++;
+				
+				// Update subscription
+				_unitOfWork.Subscriptions.Update(subscription);
+				await _unitOfWork.SaveChangesAsync();
+			}
 		}
 
 		/// <summary>
@@ -487,12 +511,8 @@ namespace giaoanpro_backend.Application.Services
 				return null;
 			}
 
-			// Count lesson plans created within the subscription period
-			var usedLessonPlans = await _unitOfWork.LessonPlans.CountAsync(
-				lp => lp.UserId == userId &&
-					  lp.CreatedAt >= subscription.StartDate &&
-					  lp.CreatedAt <= subscription.EndDate
-			);
+			// Use CurrentLessonPlansCreated from subscription record
+			var usedLessonPlans = subscription.CurrentLessonPlansCreated;
 
 			return new SubscriptionInfoResponse
 			{
