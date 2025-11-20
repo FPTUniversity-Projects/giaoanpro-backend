@@ -209,6 +209,16 @@ namespace giaoanpro_backend.Application.Services
 			{
 				return BaseResponse<GetMyCurrentAccessResponse>.Fail("No access subscription found for the user.", ResponseErrorType.NotFound);
 			}
+
+			if (subscription.EndDate < DateTime.UtcNow)
+			{
+				subscription.Status = SubscriptionStatus.Expired;
+				_unitOfWork.Subscriptions.Update(subscription);
+				await _unitOfWork.SaveChangesAsync();
+
+				return BaseResponse<GetMyCurrentAccessResponse>.Fail("No access subscription found for the user.", ResponseErrorType.NotFound);
+			}
+
 			var response = _mapper.Map<GetMyCurrentAccessResponse>(subscription);
 			return BaseResponse<GetMyCurrentAccessResponse>.Ok(response, "Current access subscription retrieved successfully.");
 		}
@@ -220,6 +230,15 @@ namespace giaoanpro_backend.Application.Services
 			{
 				return BaseResponse<GetMySubscriptionDetailResponse>.Fail("Subscription not found for the user.", ResponseErrorType.NotFound);
 			}
+
+			// If subscription already passed EndDate and isn't marked Expired, update it so callers see accurate status.
+			if (subscription.EndDate < DateTime.UtcNow && subscription.Status != SubscriptionStatus.Expired)
+			{
+				subscription.Status = SubscriptionStatus.Expired;
+				_unitOfWork.Subscriptions.Update(subscription);
+				await _unitOfWork.SaveChangesAsync();
+			}
+
 			var response = _mapper.Map<GetMySubscriptionDetailResponse>(subscription);
 			return BaseResponse<GetMySubscriptionDetailResponse>.Ok(response, "Subscription retrieved successfully.");
 		}
@@ -255,6 +274,37 @@ namespace giaoanpro_backend.Application.Services
 				pageNumber: pageNumber,
 				pageSize: pageSize
 			);
+
+			// Auto-expire any returned subscriptions whose EndDate has passed to keep data consistent.
+			var toExpire = items.Where(s => s.EndDate < DateTime.UtcNow && s.Status != SubscriptionStatus.Expired).ToList();
+			if (toExpire.Count > 0)
+			{
+				foreach (var s in toExpire)
+				{
+					s.Status = SubscriptionStatus.Expired;
+				}
+				await _unitOfWork.Subscriptions.UpdateRangeAsync(toExpire);
+				await _unitOfWork.SaveChangesAsync();
+
+				// Re-fetch to get accurate items and total count after status changes
+				var refreshed = await _unitOfWork.Subscriptions.GetSubscriptionsAsync(
+					search: null,
+					userId: userId,
+					planId: query.PlanId,
+					status: query.Status,
+					expiresBefore: null,
+					expiresAfter: null,
+					minPromptsUsed: null,
+					minLessonsCreated: null,
+					sortBy: query.SortBy,
+					isDescending: descending,
+					pageNumber: pageNumber,
+					pageSize: pageSize
+				);
+
+				items = refreshed.Items;
+				totalCount = refreshed.TotalCount;
+			}
 
 			var mapped = _mapper.Map<List<GetHistorySubscriptionResponse>>(items);
 			var paged = new PagedResult<GetHistorySubscriptionResponse>(mapped, pageNumber, pageSize, totalCount);
@@ -293,6 +343,37 @@ namespace giaoanpro_backend.Application.Services
 				pageNumber: pageNumber,
 				pageSize: pageSize
 			);
+
+			// Auto-expire any returned subscriptions whose EndDate has passed
+			var toExpire = items.Where(s => s.EndDate < DateTime.UtcNow && s.Status != SubscriptionStatus.Expired).ToList();
+			if (toExpire.Count > 0)
+			{
+				foreach (var s in toExpire)
+				{
+					s.Status = SubscriptionStatus.Expired;
+				}
+				await _unitOfWork.Subscriptions.UpdateRangeAsync(toExpire);
+				await _unitOfWork.SaveChangesAsync();
+
+				// Re-fetch after expiring to get accurate results
+				var refreshed = await _unitOfWork.Subscriptions.GetSubscriptionsAsync(
+					search: query.Search,
+					userId: query.UserId,
+					planId: query.PlanId,
+					status: query.Status,
+					expiresBefore: query.ExpiresBefore,
+					expiresAfter: query.ExpiresAfter,
+					minPromptsUsed: query.MinPromptsUsed,
+					minLessonsCreated: query.MinLessonsCreated,
+					sortBy: query.SortBy,
+					isDescending: descending,
+					pageNumber: pageNumber,
+					pageSize: pageSize
+				);
+
+				items = refreshed.Items;
+				totalCount = refreshed.TotalCount;
+			}
 
 			var mapped = _mapper.Map<List<GetHistorySubscriptionResponse>>(items);
 			var paged = new PagedResult<GetHistorySubscriptionResponse>(mapped, pageNumber, pageSize, totalCount);
@@ -377,6 +458,15 @@ namespace giaoanpro_backend.Application.Services
 			{
 				return BaseResponse<GetSubscriptionDetailResponse>.Fail("Subscription not found", ResponseErrorType.NotFound);
 			}
+
+			// Auto-expire if end date passed and status not already expired.
+			if (subscription.EndDate < DateTime.UtcNow && subscription.Status != SubscriptionStatus.Expired)
+			{
+				subscription.Status = SubscriptionStatus.Expired;
+				_unitOfWork.Subscriptions.Update(subscription);
+				await _unitOfWork.SaveChangesAsync();
+			}
+
 			var response = _mapper.Map<GetSubscriptionDetailResponse>(subscription);
 			return BaseResponse<GetSubscriptionDetailResponse>.Ok(response, "Subscription retrieved successfully.");
 		}
