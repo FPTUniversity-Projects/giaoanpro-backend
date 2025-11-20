@@ -8,7 +8,7 @@ namespace giaoanpro_backend.API.Controllers
 {
 	[Route("api/[controller]")]
 	[ApiController]
-	[Authorize(Roles = "Student")]
+	[Authorize]
 	public class ClassEnrollmentsController : BaseApiController
 	{
 		private readonly IClassEnrollmentService _classEnrollmentService;
@@ -19,6 +19,7 @@ namespace giaoanpro_backend.API.Controllers
 		}
 
 		[HttpGet]
+		[Authorize(Roles = "Student")]
 		public async Task<IActionResult> GetEnrolledClassesForStudent([FromQuery] GetEnrolledClassQuery query)
 		{
 			var studentId = GetCurrentUserId();
@@ -27,6 +28,7 @@ namespace giaoanpro_backend.API.Controllers
 		}
 
 		[HttpPost("enroll")]
+		[Authorize(Roles = "Student")]
 		public async Task<IActionResult> EnrollStudentToClass([FromBody] EnrollClassRequest request)
 		{
 			var studentId = GetCurrentUserId();
@@ -35,10 +37,19 @@ namespace giaoanpro_backend.API.Controllers
 		}
 
 		[HttpDelete("remove")]
+		[Authorize(Roles = "Student")]
 		public async Task<IActionResult> RemoveStudentFromClass([FromBody] EnrollClassRequest request)
 		{
 			var studentId = GetCurrentUserId();
 			var result = await _classEnrollmentService.RemoveStudentFromClassAsync(request.ClassId, studentId);
+			return HandleResponse(result);
+		}
+
+		[HttpDelete("teacher/remove")]
+		[Authorize(Roles = "Teacher")]
+		public async Task<IActionResult> RemoveStudentFromClassByTeacher([FromBody] EnrollClassRequest request)
+		{
+			var result = await _classEnrollmentService.RemoveStudentFromClassAsync(request.ClassId, request.StudentId ?? Guid.Empty);
 			return HandleResponse(result);
 		}
 	}
