@@ -80,7 +80,8 @@ namespace giaoanpro_backend.Application.Services
                         .Include(a => a.LessonPlan)
                         .Include(a => a.Children)
                         .Include(a => a.Exams.Where(e => e.DeletedAt == null))
-                            .ThenInclude(e => e.ExamQuestions),
+                            .ThenInclude(e => e.ExamQuestions)
+                        .Include(a => a.Materials),
                     orderBy: q => q.OrderBy(a => a.CreatedAt),
                     pageNumber: query.PageNumber,
                     pageSize: query.PageSize,
@@ -109,6 +110,16 @@ namespace giaoanpro_backend.Application.Services
 						QuestionCount = e.ExamQuestions?.Count ?? 0,
 						ActivityId = e.ActivityId
 					}).ToList(),
+					Materials = a.Materials.Select(m => new DTOs.Responses.Materials.MaterialResponse
+					{
+						Id = m.Id,
+						ActivityId = m.ActivityId,
+						Title = m.Title,
+						Type = m.Type,
+						Url = m.Url,
+						CreatedAt = m.CreatedAt,
+						UpdatedAt = m.UpdatedAt
+					}).ToList(),
 					CreatedAt = a.CreatedAt,
 					UpdatedAt = a.UpdatedAt
 				}).ToList();
@@ -133,7 +144,8 @@ namespace giaoanpro_backend.Application.Services
 						.Include(a => a.LessonPlan)
 						.Include(a => a.Children)
 						.Include(a => a.Exams.Where(e => e.DeletedAt == null))
-							.ThenInclude(e => e.ExamQuestions),
+							.ThenInclude(e => e.ExamQuestions)
+						.Include(a => a.Materials),
 					asNoTracking: true
 				);
 
@@ -163,6 +175,16 @@ namespace giaoanpro_backend.Application.Services
 						DurationMinutes = e.DurationMinutes,
 						QuestionCount = e.ExamQuestions?.Count ?? 0,
 						ActivityId = e.ActivityId
+					}).ToList(),
+					Materials = activity.Materials.Select(m => new DTOs.Responses.Materials.MaterialResponse
+					{
+						Id = m.Id,
+						ActivityId = m.ActivityId,
+						Title = m.Title,
+						Type = m.Type,
+						Url = m.Url,
+						CreatedAt = m.CreatedAt,
+						UpdatedAt = m.UpdatedAt
 					}).ToList(),
 					CreatedAt = activity.CreatedAt,
 					UpdatedAt = activity.UpdatedAt
