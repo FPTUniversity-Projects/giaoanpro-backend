@@ -132,7 +132,21 @@ namespace giaoanpro_backend.Application.Services
 					UpdatedAt = lp.UpdatedAt
 				}).ToList();
 
-				var pagedResult = new PagedResult<LessonPlanResponse>(lessonPlanResponses, query.PageNumber, query.PageSize, totalCount);
+				// Get subscription info for teachers (once per page, not per item)
+				SubscriptionInfoResponse? subscriptionInfo = null;
+				if (user.Role == UserRole.Teacher)
+				{
+					subscriptionInfo = await GetSubscriptionInfoAsync(userId);
+				}
+
+				// Use LessonPlanPagedResult to include subscription info at page level
+				var pagedResult = new LessonPlanPagedResult(
+					lessonPlanResponses, 
+					query.PageNumber, 
+					query.PageSize, 
+					totalCount,
+					subscriptionInfo
+				);
 
 				return BaseResponse<PagedResult<LessonPlanResponse>>.Ok(pagedResult);
 			}
@@ -185,6 +199,14 @@ namespace giaoanpro_backend.Application.Services
 				var user = await _unitOfWork.Users.GetByIdAsync(userId);
 				if (user != null && user.Role == UserRole.Student)
 					return BaseResponse<LessonPlanResponse>.Fail($"This action only allow for Teachers", ResponseErrorType.Forbidden);
+
+				// Check subscription and limits
+				var subscriptionCheck = await CheckSubscriptionLimitAsync(userId);
+				if (!subscriptionCheck.IsSuccess)
+				{
+					return BaseResponse<LessonPlanResponse>.Fail(subscriptionCheck.Message, subscriptionCheck.ErrorType);
+				}
+
 				// Check if subject exists
 				var subject = await _unitOfWork.Subjects.GetByIdAsync(request.SubjectId);
 				if (subject == null)
@@ -403,5 +425,86 @@ namespace giaoanpro_backend.Application.Services
                 return BaseResponse.Fail($"Error deleting lesson plan: {ex.Message}", ResponseErrorType.InternalError);
             }
         }
+
+		/// <summary>
+		/// Check if user has an active subscription and hasn't exceeded the lesson plan limit
+		/// </summary>
+		private async Task<(bool IsSuccess, string Message, ResponseErrorType ErrorType)> CheckSubscriptionLimitAsync(Guid userId)
+		{
+			var now = DateTime.UtcNow;
+
+			// Get active subscription
+			var subscription = await _unitOfWork.Subscriptions.GetByConditionAsync(
+				s => s.UserId == userId &&
+					 s.Status == SubscriptionStatus.Active &&
+					 s.StartDate <= now &&
+					 s.EndDate >= now,
+				include: q => q.Include(s => s.Plan)
+			);
+
+			if (subscription == null)
+			{
+				return (false, "You don't have an active subscription. Please subscribe to create lesson plans.", ResponseErrorType.Forbidden);
+			}
+
+			// Count lesson plans created within the subscription period
+			var lessonPlanCount = await _unitOfWork.LessonPlans.CountAsync(
+				lp => lp.UserId == userId &&
+					  lp.CreatedAt >= subscription.StartDate &&
+					  lp.CreatedAt <= subscription.EndDate
+			);
+
+			if (lessonPlanCount >= subscription.Plan.MaxLessonPlans)
+			{
+				return (false, 
+					$"You have reached the maximum limit of {subscription.Plan.MaxLessonPlans} lesson plans for your subscription plan '{subscription.Plan.Name}'. " +
+					$"Please upgrade your plan or wait until {subscription.EndDate:yyyy-MM-dd} for renewal.", 
+					ResponseErrorType.Forbidden);
+			}
+
+			return (true, string.Empty, ResponseErrorType.None);
+		}
+
+		/// <summary>
+		/// Get subscription information for a user
+		/// </summary>
+		private async Task<SubscriptionInfoResponse?> GetSubscriptionInfoAsync(Guid userId)
+		{
+			var now = DateTime.UtcNow;
+
+			// Get active subscription
+			var subscription = await _unitOfWork.Subscriptions.GetByConditionAsync(
+				s => s.UserId == userId &&
+					 s.Status == SubscriptionStatus.Active &&
+					 s.StartDate <= now &&
+					 s.EndDate >= now,
+				include: q => q.Include(s => s.Plan),
+				asNoTracking: true
+			);
+
+			if (subscription == null)
+			{
+				return null;
+			}
+
+			// Count lesson plans created within the subscription period
+			var usedLessonPlans = await _unitOfWork.LessonPlans.CountAsync(
+				lp => lp.UserId == userId &&
+					  lp.CreatedAt >= subscription.StartDate &&
+					  lp.CreatedAt <= subscription.EndDate
+			);
+
+			return new SubscriptionInfoResponse
+			{
+				SubscriptionId = subscription.Id,
+				PlanName = subscription.Plan.Name,
+				StartDate = subscription.StartDate,
+				EndDate = subscription.EndDate,
+				MaxLessonPlans = subscription.Plan.MaxLessonPlans,
+				UsedLessonPlans = usedLessonPlans,
+				AvailableLessonPlans = subscription.Plan.MaxLessonPlans - usedLessonPlans,
+				IsActive = true
+			};
+		}
     }
 }
