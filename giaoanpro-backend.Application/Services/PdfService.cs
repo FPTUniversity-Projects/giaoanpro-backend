@@ -1,9 +1,11 @@
 using giaoanpro_backend.Application.Interfaces.Repositories.Bases;
 using giaoanpro_backend.Application.Interfaces.Services;
+using HtmlAgilityPack;
 using Microsoft.EntityFrameworkCore;
 using QuestPDF.Fluent;
 using QuestPDF.Helpers;
 using QuestPDF.Infrastructure;
+using System.Text.RegularExpressions;
 
 namespace giaoanpro_backend.Application.Services
 {
@@ -45,14 +47,19 @@ namespace giaoanpro_backend.Application.Services
                     page.PageColor(Colors.White);
                     page.DefaultTextStyle(x => x.FontSize(11).FontFamily("Arial"));
 
-                    page.Header()
-                        .Text($"LESSON PLAN: {lessonPlan.Title}")
-                        .FontSize(16)
-                        .Bold()
-                        .FontColor(Colors.Blue.Darken2);
+                    // Header - appears on all pages with consistent formatting
+                    page.Header().Column(column =>
+                    {
+                        column.Item().Text($"LESSON PLAN: {lessonPlan.Title}")
+                            .FontSize(14)
+                            .Bold()
+                            .FontColor(Colors.Blue.Darken2);
+                        
+                        column.Item().PaddingTop(5).LineHorizontal(1).LineColor(Colors.Blue.Darken2);
+                    });
 
                     page.Content()
-                        .PaddingVertical(1, Unit.Centimetre)
+                        .PaddingVertical(0.5f, Unit.Centimetre)
                         .Column(column =>
                         {
                             column.Spacing(10);
@@ -100,8 +107,8 @@ namespace giaoanpro_backend.Application.Services
                             {
                                 column.Item().Column(col =>
                                 {
-                                    col.Item().Text("OBJECTIVE").FontSize(14).Bold().FontColor(Colors.Blue.Darken1);
-                                    col.Item().PaddingTop(5).Text(lessonPlan.Objective);
+                                    col.Item().Text("OBJECTIVE").FontSize(13).Bold().FontColor(Colors.Blue.Darken1);
+                                    col.Item().PaddingTop(5).Element(c => RenderHtmlContent(c, lessonPlan.Objective));
                                 });
                             }
 
@@ -110,15 +117,15 @@ namespace giaoanpro_backend.Application.Services
                             {
                                 column.Item().Column(col =>
                                 {
-                                    col.Item().Text("NOTES").FontSize(14).Bold().FontColor(Colors.Blue.Darken1);
-                                    col.Item().PaddingTop(5).Text(lessonPlan.Note);
+                                    col.Item().Text("NOTES").FontSize(13).Bold().FontColor(Colors.Blue.Darken1);
+                                    col.Item().PaddingTop(5).Element(c => RenderHtmlContent(c, lessonPlan.Note));
                                 });
                             }
 
                             column.Item().LineHorizontal(1).LineColor(Colors.Grey.Lighten2);
 
                             // Activities Section
-                            column.Item().Text("ACTIVITIES").FontSize(14).Bold().FontColor(Colors.Blue.Darken1);
+                            column.Item().Text("ACTIVITIES").FontSize(13).Bold().FontColor(Colors.Blue.Darken1);
 
                             var parentActivities = lessonPlan.Activities.Where(a => a.ParentId == null).ToList();
                             
@@ -179,37 +186,37 @@ namespace giaoanpro_backend.Application.Services
                 {
                     if (!string.IsNullOrWhiteSpace(activity.Objective))
                     {
-                        col.Item().Text(text =>
+                        col.Item().Column(contentCol =>
                         {
-                            text.Span("Objective: ").Bold();
-                            text.Span(activity.Objective);
+                            contentCol.Item().Text("Objective: ").Bold();
+                            contentCol.Item().PaddingLeft(10).Element(c => RenderHtmlContent(c, activity.Objective));
                         });
                     }
 
                     if (!string.IsNullOrWhiteSpace(activity.Content))
                     {
-                        col.Item().Text(text =>
+                        col.Item().Column(contentCol =>
                         {
-                            text.Span("Content: ").Bold();
-                            text.Span(activity.Content);
+                            contentCol.Item().Text("Content: ").Bold();
+                            contentCol.Item().PaddingLeft(10).Element(c => RenderHtmlContent(c, activity.Content));
                         });
                     }
 
                     if (!string.IsNullOrWhiteSpace(activity.Product))
                     {
-                        col.Item().Text(text =>
+                        col.Item().Column(contentCol =>
                         {
-                            text.Span("Product: ").Bold();
-                            text.Span(activity.Product);
+                            contentCol.Item().Text("Product: ").Bold();
+                            contentCol.Item().PaddingLeft(10).Element(c => RenderHtmlContent(c, activity.Product));
                         });
                     }
 
                     if (!string.IsNullOrWhiteSpace(activity.Implementation))
                     {
-                        col.Item().Text(text =>
+                        col.Item().Column(contentCol =>
                         {
-                            text.Span("Implementation: ").Bold();
-                            text.Span(activity.Implementation);
+                            contentCol.Item().Text("Implementation: ").Bold();
+                            contentCol.Item().PaddingLeft(10).Element(c => RenderHtmlContent(c, activity.Implementation));
                         });
                     }
                 });
@@ -223,6 +230,243 @@ namespace giaoanpro_backend.Application.Services
                     }
                 }
             });
+        }
+
+        /// <summary>
+        /// Renders HTML content by parsing and formatting it properly
+        /// </summary>
+        private void RenderHtmlContent(IContainer container, string htmlContent)
+        {
+            if (string.IsNullOrWhiteSpace(htmlContent))
+                return;
+
+            // Check if content contains HTML tags
+            if (!htmlContent.Contains('<'))
+            {
+                // Plain text - render as is
+                container.Text(htmlContent);
+                return;
+            }
+
+            try
+            {
+                var doc = new HtmlDocument();
+                doc.LoadHtml(htmlContent);
+
+                container.Column(column =>
+                {
+                    ProcessHtmlNode(column, doc.DocumentNode);
+                });
+            }
+            catch
+            {
+                // If HTML parsing fails, render as plain text (strip tags)
+                container.Text(StripHtmlTags(htmlContent));
+            }
+        }
+
+        /// <summary>
+        /// Recursively processes HTML nodes and renders them
+        /// </summary>
+        private void ProcessHtmlNode(ColumnDescriptor column, HtmlNode node)
+        {
+            foreach (var child in node.ChildNodes)
+            {
+                switch (child.NodeType)
+                {
+                    case HtmlNodeType.Text:
+                        var text = HtmlEntity.DeEntitize(child.InnerText).Trim();
+                        if (!string.IsNullOrWhiteSpace(text))
+                        {
+                            column.Item().Text(text);
+                        }
+                        break;
+
+                    case HtmlNodeType.Element:
+                        ProcessHtmlElement(column, child);
+                        break;
+                }
+            }
+        }
+
+        /// <summary>
+        /// Processes specific HTML elements
+        /// </summary>
+        private void ProcessHtmlElement(ColumnDescriptor column, HtmlNode element)
+        {
+            var tagName = element.Name.ToLower();
+
+            switch (tagName)
+            {
+                case "p":
+                    var pText = GetInnerTextWithFormatting(element);
+                    if (!string.IsNullOrWhiteSpace(pText))
+                    {
+                        column.Item().PaddingBottom(5).Text(text => RenderFormattedText(text, element));
+                    }
+                    break;
+
+                case "ol":
+                    column.Item().PaddingLeft(15).Column(listCol =>
+                    {
+                        int counter = 1;
+                        foreach (var li in element.SelectNodes(".//li") ?? Enumerable.Empty<HtmlNode>())
+                        {
+                            listCol.Item().Row(row =>
+                            {
+                                row.ConstantItem(30).Text($"{counter}.");
+                                row.RelativeItem().Column(itemCol =>
+                                {
+                                    ProcessHtmlNode(itemCol, li);
+                                });
+                            });
+                            counter++;
+                        }
+                    });
+                    break;
+
+                case "ul":
+                    column.Item().PaddingLeft(15).Column(listCol =>
+                    {
+                        foreach (var li in element.SelectNodes(".//li") ?? Enumerable.Empty<HtmlNode>())
+                        {
+                            listCol.Item().Row(row =>
+                            {
+                                row.ConstantItem(30).Text("•");
+                                row.RelativeItem().Column(itemCol =>
+                                {
+                                    ProcessHtmlNode(itemCol, li);
+                                });
+                            });
+                        }
+                    });
+                    break;
+
+                case "li":
+                    // Handled by ol/ul parent
+                    break;
+
+                case "strong":
+                case "b":
+                    var strongText = GetInnerTextWithFormatting(element);
+                    if (!string.IsNullOrWhiteSpace(strongText))
+                    {
+                        column.Item().Text(strongText).Bold();
+                    }
+                    break;
+
+                case "em":
+                case "i":
+                    var emText = GetInnerTextWithFormatting(element);
+                    if (!string.IsNullOrWhiteSpace(emText))
+                    {
+                        column.Item().Text(emText).Italic();
+                    }
+                    break;
+
+                case "blockquote":
+                    column.Item().PaddingLeft(20).BorderLeft(3).BorderColor(Colors.Grey.Medium).PaddingLeft(10)
+                        .Column(quoteCol =>
+                        {
+                            ProcessHtmlNode(quoteCol, element);
+                        });
+                    break;
+
+                case "br":
+                    column.Item().PaddingBottom(5);
+                    break;
+
+                case "h1":
+                case "h2":
+                case "h3":
+                case "h4":
+                case "h5":
+                case "h6":
+                    var headerText = GetInnerTextWithFormatting(element);
+                    if (!string.IsNullOrWhiteSpace(headerText))
+                    {
+                        var fontSize = tagName switch
+                        {
+                            "h1" => 18,
+                            "h2" => 16,
+                            "h3" => 14,
+                            "h4" => 13,
+                            "h5" => 12,
+                            _ => 11
+                        };
+                        column.Item().PaddingVertical(5).Text(headerText).FontSize(fontSize).Bold();
+                    }
+                    break;
+
+                default:
+                    // For unhandled elements, process their children
+                    ProcessHtmlNode(column, element);
+                    break;
+            }
+        }
+
+        /// <summary>
+        /// Renders formatted text with inline styles (bold, italic, etc.)
+        /// </summary>
+        private void RenderFormattedText(TextDescriptor text, HtmlNode node)
+        {
+            foreach (var child in node.ChildNodes)
+            {
+                if (child.NodeType == HtmlNodeType.Text)
+                {
+                    var content = HtmlEntity.DeEntitize(child.InnerText).Trim();
+                    if (!string.IsNullOrWhiteSpace(content))
+                    {
+                        text.Span(content);
+                    }
+                }
+                else if (child.NodeType == HtmlNodeType.Element)
+                {
+                    var tagName = child.Name.ToLower();
+                    var content = GetInnerTextWithFormatting(child);
+
+                    if (!string.IsNullOrWhiteSpace(content))
+                    {
+                        switch (tagName)
+                        {
+                            case "strong":
+                            case "b":
+                                text.Span(content).Bold();
+                                break;
+                            case "em":
+                            case "i":
+                                text.Span(content).Italic();
+                                break;
+                            default:
+                                text.Span(content);
+                                break;
+                        }
+                    }
+                }
+            }
+        }
+
+        /// <summary>
+        /// Gets inner text while preserving formatting structure
+        /// </summary>
+        private string GetInnerTextWithFormatting(HtmlNode node)
+        {
+            return HtmlEntity.DeEntitize(node.InnerText).Trim();
+        }
+
+        /// <summary>
+        /// Strips HTML tags and returns plain text
+        /// </summary>
+        private string StripHtmlTags(string html)
+        {
+            if (string.IsNullOrWhiteSpace(html))
+                return string.Empty;
+
+            // Remove HTML tags
+            var text = Regex.Replace(html, "<.*?>", string.Empty);
+            // Decode HTML entities
+            text = HtmlEntity.DeEntitize(text);
+            return text.Trim();
         }
     }
 }
