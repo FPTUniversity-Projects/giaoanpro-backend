@@ -12,10 +12,12 @@ namespace giaoanpro_backend.Application.Services
 	public class LessonPlanService : ILessonPlanService
 	{
 		private readonly IUnitOfWork _unitOfWork;
+		private readonly ILessonPlanPdfManager _pdfManager;
 
-		public LessonPlanService(IUnitOfWork unitOfWork)
+		public LessonPlanService(IUnitOfWork unitOfWork, ILessonPlanPdfManager pdfManager)
 		{
 			_unitOfWork = unitOfWork;
+			_pdfManager = pdfManager;
 		}
 
         public async Task<BaseResponse<PagedResult<LessonPlanResponse>>> GetLessonPlansAsync(GetLessonPlansQuery query, Guid userId)
@@ -124,6 +126,7 @@ namespace giaoanpro_backend.Application.Services
 					Title = lp.Title,
 					Objective = lp.Objective,
 					Note = lp.Note,
+					Docs = lp.Docs,
 					ActivityCount = lp.Activities.Count,
 					CreatedAt = lp.CreatedAt,
 					UpdatedAt = lp.UpdatedAt
@@ -160,6 +163,7 @@ namespace giaoanpro_backend.Application.Services
 					Title = lessonPlan.Title,
 					Objective = lessonPlan.Objective,
 					Note = lessonPlan.Note,
+					Docs = lessonPlan.Docs,
 					ActivityCount = lessonPlan.Activities.Count,
 					CreatedAt = lessonPlan.CreatedAt,
 					UpdatedAt = lessonPlan.UpdatedAt
@@ -208,6 +212,21 @@ namespace giaoanpro_backend.Application.Services
 				await _unitOfWork.LessonPlans.AddAsync(lessonPlan);
 				await _unitOfWork.SaveChangesAsync();
 
+				// Generate and upload PDF
+				try
+				{
+					var pdfUrl = await _pdfManager.GenerateAndUploadPdfAsync(lessonPlan.Id);
+					lessonPlan.Docs = pdfUrl;
+					_unitOfWork.LessonPlans.Update(lessonPlan);
+					await _unitOfWork.SaveChangesAsync();
+				}
+				catch (Exception ex)
+				{
+					// Log error but don't fail the entire operation
+					// PDF can be regenerated later
+					Console.WriteLine($"Error generating PDF for lesson plan {lessonPlan.Id}: {ex.Message}");
+				}
+
 				// Reload with navigation properties
 				lessonPlan = await _unitOfWork.LessonPlans.GetByIdWithActivitiesAsync(lessonPlan.Id);
 
@@ -221,6 +240,7 @@ namespace giaoanpro_backend.Application.Services
 					Title = lessonPlan.Title,
 					Objective = lessonPlan.Objective,
 					Note = lessonPlan.Note,
+					Docs = lessonPlan.Docs,
 					ActivityCount = lessonPlan.Activities.Count,
 					CreatedAt = lessonPlan.CreatedAt,
 					UpdatedAt = lessonPlan.UpdatedAt
@@ -265,6 +285,9 @@ namespace giaoanpro_backend.Application.Services
 					return BaseResponse<LessonPlanResponse>.Fail($"Lesson plan '{request.Title}' already exists", ResponseErrorType.Conflict);
 				}
 
+				// Store old PDF URL for deletion
+				var oldPdfUrl = lessonPlan.Docs;
+
 				lessonPlan.SubjectId = request.SubjectId;
 				lessonPlan.Title = request.Title;
 				lessonPlan.Objective = request.Objective;
@@ -272,6 +295,27 @@ namespace giaoanpro_backend.Application.Services
 
 				_unitOfWork.LessonPlans.Update(lessonPlan);
 				await _unitOfWork.SaveChangesAsync();
+
+				// Regenerate PDF
+				try
+				{
+					// Delete old PDF if exists
+					if (!string.IsNullOrWhiteSpace(oldPdfUrl))
+					{
+						await _pdfManager.DeletePdfAsync(oldPdfUrl);
+					}
+
+					// Generate and upload new PDF
+					var pdfUrl = await _pdfManager.GenerateAndUploadPdfAsync(lessonPlan.Id);
+					lessonPlan.Docs = pdfUrl;
+					_unitOfWork.LessonPlans.Update(lessonPlan);
+					await _unitOfWork.SaveChangesAsync();
+				}
+				catch (Exception ex)
+				{
+					// Log error but don't fail the entire operation
+					Console.WriteLine($"Error regenerating PDF for lesson plan {lessonPlan.Id}: {ex.Message}");
+				}
 
 				// Reload with navigation properties
 				lessonPlan = await _unitOfWork.LessonPlans.GetByIdWithActivitiesAsync(id);
@@ -286,6 +330,7 @@ namespace giaoanpro_backend.Application.Services
 					Title = lessonPlan.Title,
 					Objective = lessonPlan.Objective,
 					Note = lessonPlan.Note,
+					Docs = lessonPlan.Docs,
 					ActivityCount = lessonPlan.Activities.Count,
 					CreatedAt = lessonPlan.CreatedAt,
 					UpdatedAt = lessonPlan.UpdatedAt
@@ -329,10 +374,27 @@ namespace giaoanpro_backend.Application.Services
                         ResponseErrorType.Conflict);
                 }
 
+				// Store PDF URL for deletion
+				var pdfUrl = lessonPlan.Docs;
+
                 // Since cascade delete is configured in the database for Activities,
                 // deleting the lesson plan will automatically delete all activities
                 _unitOfWork.LessonPlans.Remove(lessonPlan);
                 await _unitOfWork.SaveChangesAsync();
+
+				// Delete PDF from S3
+				try
+				{
+					if (!string.IsNullOrWhiteSpace(pdfUrl))
+					{
+						await _pdfManager.DeletePdfAsync(pdfUrl);
+					}
+				}
+				catch (Exception ex)
+				{
+					// Log error but don't fail the entire operation
+					Console.WriteLine($"Error deleting PDF for lesson plan {id}: {ex.Message}");
+				}
 
                 return BaseResponse.Ok("Lesson plan and all associated activities deleted successfully");
             }

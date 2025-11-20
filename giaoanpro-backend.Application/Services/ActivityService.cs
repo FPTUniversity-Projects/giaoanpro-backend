@@ -12,10 +12,12 @@ namespace giaoanpro_backend.Application.Services
 	public class ActivityService : IActivityService
 	{
 		private readonly IUnitOfWork _unitOfWork;
+		private readonly ILessonPlanPdfManager _pdfManager;
 
-		public ActivityService(IUnitOfWork unitOfWork)
+		public ActivityService(IUnitOfWork unitOfWork, ILessonPlanPdfManager pdfManager)
 		{
 			_unitOfWork = unitOfWork;
+			_pdfManager = pdfManager;
 		}
 
         public async Task<BaseResponse<PagedResult<ActivityResponse>>> GetActivitiesAsync(GetActivitiesQuery query, Guid userId)
@@ -188,6 +190,9 @@ namespace giaoanpro_backend.Application.Services
 				await _unitOfWork.Activities.AddAsync(activity);
 				await _unitOfWork.SaveChangesAsync();
 
+				// Regenerate PDF for lesson plan
+				await RegenerateLessonPlanPdfAsync(request.LessonPlanId, lessonPlan);
+
 				// Reload with navigation properties
 				activity = await _unitOfWork.Activities.GetByIdWithChildrenAsync(activity.Id);
 
@@ -274,6 +279,8 @@ namespace giaoanpro_backend.Application.Services
 					}
 				}
 
+				var oldLessonPlanId = activity.LessonPlanId;
+
 				activity.LessonPlanId = request.LessonPlanId;
 				activity.ParentId = request.ParentId;
 				activity.Type = request.Type;
@@ -285,6 +292,19 @@ namespace giaoanpro_backend.Application.Services
 
 				_unitOfWork.Activities.Update(activity);
 				await _unitOfWork.SaveChangesAsync();
+
+				// Regenerate PDF for the new lesson plan
+				await RegenerateLessonPlanPdfAsync(request.LessonPlanId, lessonPlan);
+
+				// If activity was moved to a different lesson plan, regenerate PDF for old lesson plan too
+				if (oldLessonPlanId != request.LessonPlanId)
+				{
+					var oldLessonPlan = await _unitOfWork.LessonPlans.GetByIdAsync(oldLessonPlanId);
+					if (oldLessonPlan != null)
+					{
+						await RegenerateLessonPlanPdfAsync(oldLessonPlanId, oldLessonPlan);
+					}
+				}
 
 				// Reload with navigation properties
 				activity = await _unitOfWork.Activities.GetByIdWithChildrenAsync(id);
@@ -362,9 +382,15 @@ namespace giaoanpro_backend.Application.Services
                     await DeleteChildrenRecursivelyAsync(activity.Id);
                 }
 
+				var lessonPlanId = activity.LessonPlanId;
+				var lessonPlan = activity.LessonPlan;
+
                 // Finally, delete the parent activity
                 _unitOfWork.Activities.Remove(activity);
                 await _unitOfWork.SaveChangesAsync();
+
+				// Regenerate PDF for lesson plan
+				await RegenerateLessonPlanPdfAsync(lessonPlanId, lessonPlan);
 
                 return BaseResponse.Ok("Activity and all child activities deleted successfully");
             }
@@ -373,6 +399,37 @@ namespace giaoanpro_backend.Application.Services
                 return BaseResponse.Fail($"Error deleting activity: {ex.Message}", ResponseErrorType.InternalError);
             }
         }
+
+		/// <summary>
+		/// Regenerate and upload PDF for a lesson plan
+		/// </summary>
+		private async Task RegenerateLessonPlanPdfAsync(Guid lessonPlanId, LessonPlan lessonPlan)
+		{
+			try
+			{
+				// Store old PDF URL for deletion
+				var oldPdfUrl = lessonPlan.Docs;
+
+				// Delete old PDF if exists
+				if (!string.IsNullOrWhiteSpace(oldPdfUrl))
+				{
+					await _pdfManager.DeletePdfAsync(oldPdfUrl);
+				}
+
+				// Generate and upload new PDF
+				var pdfUrl = await _pdfManager.GenerateAndUploadPdfAsync(lessonPlanId);
+				
+				// Update lesson plan with new PDF URL
+				lessonPlan.Docs = pdfUrl;
+				_unitOfWork.LessonPlans.Update(lessonPlan);
+				await _unitOfWork.SaveChangesAsync();
+			}
+			catch (Exception ex)
+			{
+				// Log error but don't fail the entire operation
+				Console.WriteLine($"Error regenerating PDF for lesson plan {lessonPlanId}: {ex.Message}");
+			}
+		}
 
 		/// <summary>
 		/// Recursively checks if any child activities (or their descendants) have exams
