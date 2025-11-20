@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using giaoanpro_backend.Persistence.Context;
 
@@ -11,9 +12,11 @@ using giaoanpro_backend.Persistence.Context;
 namespace giaoanpro_backend.Persistence.Migrations
 {
     [DbContext(typeof(GiaoanproDBContext))]
-    partial class GiaoanproDBContextModelSnapshot : ModelSnapshot
+    [Migration("20251120025840_AddExamMatrixLines")]
+    partial class AddExamMatrixLines
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -263,7 +266,7 @@ namespace giaoanpro_backend.Persistence.Migrations
                     b.Property<int>("DurationMinutes")
                         .HasColumnType("int");
 
-                    b.Property<Guid>("MatrixId")
+                    b.Property<Guid?>("MatrixId")
                         .HasColumnType("uniqueidentifier");
 
                     b.Property<string>("Title")
@@ -293,21 +296,24 @@ namespace giaoanpro_backend.Persistence.Migrations
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime2");
 
-                    b.Property<DateTime?>("DeletedAt")
-                        .HasColumnType("datetime2");
+                    b.Property<int>("DurationMinutes")
+                        .HasColumnType("int");
 
                     b.Property<Guid>("LessonPlanId")
                         .HasColumnType("uniqueidentifier");
 
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                    b.Property<int>("MarksPerQuestion")
+                        .HasColumnType("int");
+
+                    b.Property<int>("NumberOfQuestions")
+                        .HasColumnType("int");
 
                     b.Property<Guid>("SubjectId")
                         .HasColumnType("uniqueidentifier");
 
-                    b.Property<int>("TotalQuestions")
-                        .HasColumnType("int");
+                    b.Property<string>("Topic")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<DateTime>("UpdatedAt")
                         .HasColumnType("datetime2");
@@ -321,7 +327,7 @@ namespace giaoanpro_backend.Persistence.Migrations
                     b.ToTable("ExamMatrices");
                 });
 
-            modelBuilder.Entity("giaoanpro_backend.Domain.Entities.ExamMatrixDetail", b =>
+            modelBuilder.Entity("giaoanpro_backend.Domain.Entities.ExamMatrixLine", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
@@ -340,6 +346,9 @@ namespace giaoanpro_backend.Persistence.Migrations
                     b.Property<Guid>("MatrixId")
                         .HasColumnType("uniqueidentifier");
 
+                    b.Property<int>("PointsPerQuestion")
+                        .HasColumnType("int");
+
                     b.Property<string>("QuestionType")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
@@ -351,7 +360,7 @@ namespace giaoanpro_backend.Persistence.Migrations
 
                     b.HasIndex("MatrixId");
 
-                    b.ToTable("ExamMatrixDetails");
+                    b.ToTable("ExamMatrixLines");
                 });
 
             modelBuilder.Entity("giaoanpro_backend.Domain.Entities.ExamQuestion", b =>
@@ -976,8 +985,7 @@ namespace giaoanpro_backend.Persistence.Migrations
                     b.HasOne("giaoanpro_backend.Domain.Entities.ExamMatrix", "Matrix")
                         .WithMany("Exams")
                         .HasForeignKey("MatrixId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
+                        .OnDelete(DeleteBehavior.Restrict);
 
                     b.Navigation("Activity");
 
@@ -991,7 +999,7 @@ namespace giaoanpro_backend.Persistence.Migrations
                     b.HasOne("giaoanpro_backend.Domain.Entities.LessonPlan", "LessonPlan")
                         .WithMany("ExamMatrices")
                         .HasForeignKey("LessonPlanId")
-                        .OnDelete(DeleteBehavior.Cascade)
+                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
                     b.HasOne("giaoanpro_backend.Domain.Entities.Subject", "Subject")
@@ -1005,10 +1013,10 @@ namespace giaoanpro_backend.Persistence.Migrations
                     b.Navigation("Subject");
                 });
 
-            modelBuilder.Entity("giaoanpro_backend.Domain.Entities.ExamMatrixDetail", b =>
+            modelBuilder.Entity("giaoanpro_backend.Domain.Entities.ExamMatrixLine", b =>
                 {
                     b.HasOne("giaoanpro_backend.Domain.Entities.ExamMatrix", "Matrix")
-                        .WithMany("Lines")
+                        .WithMany("MatrixLines")
                         .HasForeignKey("MatrixId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
@@ -1193,7 +1201,7 @@ namespace giaoanpro_backend.Persistence.Migrations
                 {
                     b.Navigation("Exams");
 
-                    b.Navigation("Lines");
+                    b.Navigation("MatrixLines");
                 });
 
             modelBuilder.Entity("giaoanpro_backend.Domain.Entities.Grade", b =>

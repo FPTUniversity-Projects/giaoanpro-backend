@@ -5,7 +5,8 @@ namespace giaoanpro_backend.Domain.Entities
 	public class Exam : AuditableEntity, ISoftDeleteEntity
     {
 		public Guid Id { get; set; }
-		public Guid? MatrixId { get; set; }
+		// MatrixId made required. NOTE: existing DB rows must be cleaned/truncated before applying migration that makes this column NOT NULL.
+		public Guid MatrixId { get; set; }
 		public Guid? ActivityId { get; set; }
 		public Guid CreatorId { get; set; }
 		public string Title { get; set; } = string.Empty;

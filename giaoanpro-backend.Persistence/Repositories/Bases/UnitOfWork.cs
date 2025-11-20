@@ -2,6 +2,7 @@
 using giaoanpro_backend.Application.Interfaces.Repositories.Bases;
 using giaoanpro_backend.Persistence.Context;
 using Microsoft.EntityFrameworkCore.Storage;
+using Microsoft.EntityFrameworkCore;
 
 namespace giaoanpro_backend.Persistence.Repositories.Bases
 {
@@ -177,6 +178,19 @@ namespace giaoanpro_backend.Persistence.Repositories.Bases
                 return (IExamRepository)repo!;
             }
         }
+        public IExamMatrixRepository ExamMatrices
+        {
+            get
+            {
+                var key = typeof(IExamMatrixRepository);
+                if (!_repositories.TryGetValue(key, out var repo))
+                {
+                    repo = new ExamMatrixRepository(_context);
+                    _repositories[key] = repo!;
+                }
+                return (IExamMatrixRepository)repo!;
+            }
+        }
 
         public UnitOfWork(GiaoanproDBContext context)
 		{
@@ -185,7 +199,38 @@ namespace giaoanpro_backend.Persistence.Repositories.Bases
 
 		public async Task<bool> SaveChangesAsync()
 		{
-			return await _context.SaveChangesAsync() > 0;
+			int attempts = 0;
+			while (true)
+			{
+				try
+				{
+					return await _context.SaveChangesAsync() > 0;
+				}
+				catch (DbUpdateConcurrencyException ex)
+				{
+					attempts++;
+					if (attempts >= 3)
+					{
+						// Give up after several retries
+						return false;
+					}
+
+					// Try to resolve concurrency by refreshing the entries from the database
+					foreach (var entry in ex.Entries)
+					{
+						try
+						{
+							await entry.ReloadAsync();
+						}
+						catch
+						{
+							// If reload fails, continue to next entry; we'll retry the save
+						}
+					}
+					// Small delay before retrying
+					await Task.Delay(50);
+				}
+			}
 		}
 
 		public async Task<int> SaveChangesAndReturnCountAsync()

@@ -2,7 +2,9 @@
 {
 	public enum AttemptStatus
 	{
-		Submited = 1,
-		Graded
+		InProgress = 1,
+		Submitted,
+		PendingGrading,
+		Completed
 	}
 }

@@ -12,6 +12,10 @@ namespace giaoanpro_backend.Domain.Entities
 		public int Score { get; set; }
 		public string Feedback { get; set; } = string.Empty;
 
+		// Teacher provided feedback and grade
+		public string? TeacherFeedback { get; set; }
+		public decimal? Grade { get; set; }
+
 		// Navigation properties
 		public virtual Attempt Attempt { get; set; } = null!;
 		public virtual Question Question { get; set; } = null!;

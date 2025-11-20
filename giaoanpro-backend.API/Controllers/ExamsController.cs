@@ -8,12 +8,14 @@ using giaoanpro_backend.Application.Interfaces.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using giaoanpro_backend.Application.DTOs.Requests.Questions;
+using giaoanpro_backend.Domain.Enums;
 
 namespace giaoanpro_backend.API.Controllers
 {
 	[Route("api/exams")]
 	[ApiController]
-	[Authorize]
+	[Authorize(Roles ="Teacher")]
 	public class ExamsController : BaseApiController
 	{
 		private readonly IExamService _examService;
@@ -49,6 +51,31 @@ namespace giaoanpro_backend.API.Controllers
 			}
 
 			return StatusCode(201, result);
+		}
+
+		[HttpPost("ai-preview")]
+		[ProducesResponseType(typeof(BaseResponse<List<CreateQuestionRequest>>), StatusCodes.Status200OK)]
+		[ProducesResponseType(typeof(BaseResponse<List<CreateQuestionRequest>>), StatusCodes.Status400BadRequest)]
+		[ProducesResponseType(typeof(BaseResponse<List<CreateQuestionRequest>>), StatusCodes.Status401Unauthorized)]
+		[ProducesResponseType(typeof(BaseResponse<List<CreateQuestionRequest>>), StatusCodes.Status403Forbidden)]
+		[ProducesResponseType(typeof(BaseResponse<List<CreateQuestionRequest>>), StatusCodes.Status500InternalServerError)]
+		public async Task<ActionResult<BaseResponse<List<CreateQuestionRequest>>>> GenerateQuestionsAI([FromBody] GenerateQuestionPromptRequest request, [FromQuery] AwarenessLevel awarenessLevel)
+		{
+			// If the caller passed awarenessLevel via query, prefer it (makes Swagger UI show a dropdown for this enum)
+			request.AwarenessLevel = awarenessLevel;
+
+			var validation = ValidateRequestBody<List<CreateQuestionRequest>>(request);
+			if (validation != null) return validation;
+
+			// Enforce max count as a safety net
+			if (request.Count <= 0 || request.Count > 20)
+			{
+				var bad = BaseResponse<List<CreateQuestionRequest>>.Fail("Count must be between 1 and 20.", ResponseErrorType.BadRequest);
+				return HandleResponse(bad);
+			}
+
+			var result = await _examService.GenerateQuestionsWithAIAsync(request);
+			return HandleResponse(result);
 		}
 
 		[HttpGet("{id:guid}")]
