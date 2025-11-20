@@ -62,6 +62,12 @@ builder.Services.Configure<ApiBehaviorOptions>(options =>
 	options.SuppressModelStateInvalidFilter = true;
 });
 
+// Configure file upload limits (for multipart/form-data)
+builder.Services.Configure<Microsoft.AspNetCore.Http.Features.FormOptions>(options =>
+{
+	options.MultipartBodyLengthLimit = 10 * 1024 * 1024; // 10 MB limit
+});
+
 // JSON options
 builder.Services.AddControllers().AddJsonOptions(options =>
 {
@@ -133,6 +139,9 @@ builder.Services.AddSwaggerGen(c =>
 			.Select(name => (IOpenApiAny)new OpenApiString(name))
 			.ToList()
 	});
+	
+	// No longer needed - using separate endpoints for file upload
+	// c.OperationFilter<FileUploadOperationFilter>();
 });
 
 var app = builder.Build();
@@ -144,6 +153,9 @@ app.UseSwaggerUI();
 app.UseCors("AllowFrontend");
 
 app.UseHttpsRedirection();
+
+// Serve static files from wwwroot (for uploaded files)
+app.UseStaticFiles();
 
 app.UseAuthentication();
 app.UseAuthorization();
