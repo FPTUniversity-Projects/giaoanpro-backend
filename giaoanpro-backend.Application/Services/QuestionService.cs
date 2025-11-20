@@ -21,6 +21,9 @@ namespace giaoanpro_backend.Application.Services
         private readonly IGenericRepository<Question> _questionRepository;
         private readonly IGenericRepository<QuestionOption> _optionRepository;
         private readonly IGenericRepository<LessonPlan> _lessonRepository;
+        private readonly ISubscriptionPlanService _subscriptionPlanService;
+        private readonly ISubscriptionService _subscriptionService;
+        private readonly IUnitOfWork _unitOfWork;
         private readonly IMapper _mapper;
         private readonly IGeminiService _gemini;
 
@@ -28,20 +31,65 @@ namespace giaoanpro_backend.Application.Services
             IGenericRepository<Question> questionRepository,
             IGenericRepository<QuestionOption> optionRepository,
             IGenericRepository<LessonPlan> lessonRepository,
-
+            ISubscriptionService subscriptionService,
+            ISubscriptionPlanService subscriptionPlanService,
+            IUnitOfWork unitOfWork,
             IMapper mapper,
             IGeminiService gemini)
         {
             _questionRepository = questionRepository;
             _optionRepository = optionRepository;
             _lessonRepository = lessonRepository;
+            _subscriptionService = subscriptionService;
+            _subscriptionPlanService = subscriptionPlanService;
+            _unitOfWork = unitOfWork;
             _mapper = mapper;
             _gemini = gemini;
         }
 
         public async Task<BaseResponse<List<GetQuestionResponse>>> GenerateQuestionsAiAsync(GenerateQuestionsRequest request, Guid userId)
         {
-            // Validate lesson plan exists and check ownership
+            var subscriptionResponse = await _subscriptionService.GetCurrentAccessSubscriptionByUserIdAsync(userId);
+            if (subscriptionResponse == null || !subscriptionResponse.Success || subscriptionResponse.Payload == null)
+            {
+                return BaseResponse<List<GetQuestionResponse>>.Fail("Bạn cần có subscription để sử dụng tính năng tạo câu hỏi AI.", ResponseErrorType.Forbidden);
+            }
+
+            var planResponse = await _subscriptionPlanService.GetSubscriptionPlanByIdAsync(subscriptionResponse.Payload.PlanId);
+            if (planResponse == null || !planResponse.Success || planResponse.Payload == null)
+            {
+                return BaseResponse<List<GetQuestionResponse>>.Fail("Không tìm thấy subscription plan.", ResponseErrorType.NotFound);
+            }
+
+            var plan = planResponse.Payload;
+            var subscriptionEntity = await _unitOfWork.Subscriptions.GetByIdAsync(subscriptionResponse.Payload.Id);
+            if (subscriptionEntity == null)
+            {
+                return BaseResponse<List<GetQuestionResponse>>.Fail("Không tìm thấy subscription.", ResponseErrorType.NotFound);
+            }
+
+            // Calculate total questions to be generated
+            var totalQuestionsToGenerate = request.Specs.Sum(spec => Math.Clamp(spec.Count, 1, 10));
+
+            // Check and reset CurrentPromptsUsed if it's a new day
+            var now = DateTime.UtcNow;
+            var today = now.Date;
+            if (subscriptionEntity.LastPromptResetDate == null || subscriptionEntity.LastPromptResetDate.Value.Date < today)
+            {
+                subscriptionEntity.CurrentPromptsUsed = 0;
+                subscriptionEntity.LastPromptResetDate = today;
+            }
+
+            // Check if user has exceeded daily prompt limit
+            if (subscriptionEntity.CurrentPromptsUsed + totalQuestionsToGenerate > plan.MaxPromptsPerDay)
+            {
+                var remaining = plan.MaxPromptsPerDay - subscriptionEntity.CurrentPromptsUsed;
+                return BaseResponse<List<GetQuestionResponse>>.Fail(
+                    $"Bạn đã sử dụng hết số lượt prompt trong ngày. Bạn còn {remaining} lượt. Vui lòng thử lại vào ngày mai.",
+                    ResponseErrorType.Forbidden
+                );
+            }
+
             var lesson = await _lessonRepository.GetByConditionAsync(
                 lp => lp.Id == request.LessonPlanId,
                 include: q => q.Include(x => x.Activities),
@@ -158,6 +206,12 @@ namespace giaoanpro_backend.Application.Services
             {
                 return BaseResponse<List<GetQuestionResponse>>.Fail("Failed to persist generated questions.");
             }
+
+            // Update CurrentPromptsUsed after successful generation
+            var actualQuestionsCreated = createdIds.Count;
+            subscriptionEntity.CurrentPromptsUsed += actualQuestionsCreated;
+            _unitOfWork.Subscriptions.Update(subscriptionEntity);
+            await _unitOfWork.SaveChangesAsync();
 
             var loaded = await _questionRepository.GetAllAsync(
                 filter: q => createdIds.Contains(q.Id),
