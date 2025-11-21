@@ -1,21 +1,17 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Threading.Tasks;
-using giaoanpro_backend.Application.DTOs.Requests.Exams;
-using giaoanpro_backend.Application.DTOs.Responses.Exams;
-using giaoanpro_backend.Application.DTOs.Responses.Bases;
-using giaoanpro_backend.Application.Interfaces.Services;
-using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Mvc;
+﻿using giaoanpro_backend.Application.DTOs.Requests.Exams;
 using giaoanpro_backend.Application.DTOs.Requests.Questions;
+using giaoanpro_backend.Application.DTOs.Responses.Bases;
+using giaoanpro_backend.Application.DTOs.Responses.Exams;
+using giaoanpro_backend.Application.Interfaces.Services;
 using giaoanpro_backend.Domain.Enums;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 
 namespace giaoanpro_backend.API.Controllers
 {
 	[Route("api/exams")]
 	[ApiController]
-	[Authorize(Roles ="Teacher")]
+	[Authorize(Roles = "Teacher")]
 	public class ExamsController : BaseApiController
 	{
 		private readonly IExamService _examService;
@@ -115,14 +111,14 @@ namespace giaoanpro_backend.API.Controllers
 			var validation = ValidateRequestBody<string>(request);
 			if (validation != null) return validation;
 
-			if (id != request.Id)
-			{
-				var mismatch = BaseResponse<string>.Fail("Route id does not match request id.", ResponseErrorType.BadRequest);
-				return HandleResponse(mismatch);
-			}
+			//if (id != request.Id)
+			//{
+			//	var mismatch = BaseResponse<string>.Fail("Route id does not match request id.", ResponseErrorType.BadRequest);
+			//	return HandleResponse(mismatch);
+			//}
 
 			var currentUserId = GetCurrentUserId();
-			var result = await _examService.UpdateExamAsync(request, currentUserId);
+			var result = await _examService.UpdateExamAsync(id, request, currentUserId);
 			return HandleResponse(result);
 		}
 
